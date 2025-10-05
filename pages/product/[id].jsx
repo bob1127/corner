@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Layout from "../Layout";
 import { cartStore } from "@/lib/cartStore";
 
@@ -14,8 +14,9 @@ import "swiper/css/thumbs";
 
 import Image from "next/image";
 import HotProductsCarousel from "@/components/HotProductsCarousel";
+import { AnimatePresence, motion } from "framer-motion";
 
-/* helpers */
+/* ---------- helpers ---------- */
 const priceFromStore = (p) =>
   p?.prices?.price ? Number(p.prices.price) / 100 : 0;
 
@@ -24,12 +25,8 @@ const imagesFromProduct = (p) =>
     ? p.images
     : [{ src: "/images/placeholder.png", alt: p?.name || "product" }];
 
-/** 讀取保存方式（優先：全站屬性 storage；備援：自訂 meta） */
-/** 讀取保存方式標籤（支援 pa_storage / terms 格式） */
 const storageTagsFromProduct = (p) => {
   if (!p || !Array.isArray(p.attributes)) return [];
-
-  // 找出名稱是「保存方式」、slug 或 taxonomy 為 pa_storage 的屬性
   const attr = p.attributes.find((a) => {
     const slug = String(a?.slug || "").toLowerCase();
     const tax = String(a?.taxonomy || "").toLowerCase();
@@ -41,31 +38,57 @@ const storageTagsFromProduct = (p) => {
       tax === "pa_storage"
     );
   });
-
   if (!attr) return [];
-
-  // ✅ 你的 WooCommerce Store API 正確格式是這個
   if (Array.isArray(attr.terms) && attr.terms.length > 0) {
     return attr.terms.map((t) => t.name).filter(Boolean);
   }
-
-  // 🟡 備援格式（options）
   if (Array.isArray(attr.options) && attr.options.length > 0) {
     return attr.options.map((s) => String(s).trim()).filter(Boolean);
   }
-
   return [];
 };
 
 export default function ProductDetail() {
-  const { query } = useRouter();
-  const { id } = query;
+  const router = useRouter();
+  const { id } = router.query;
 
   const [p, setP] = useState(null);
   const [qty, setQty] = useState(1);
   const [err, setErr] = useState("");
   const [thumbsSwiper, setThumbsSwiper] = useState(null);
 
+  // === 自訂彈出匡狀態 ===
+  const [added, setAdded] = useState(null); // { id, name, img, price, qty }
+
+  // 加入購物車 + 彈出匡
+  const showAddedToast = useCallback((prod, count = 1) => {
+    const payload = {
+      id: prod.id,
+      name: prod.name,
+      price: prod.price ?? priceFromStore(prod),
+      img: prod.img ?? prod?.images?.[0]?.src ?? "/images/placeholder.png",
+      qty: Math.max(1, count),
+    };
+    cartStore.add(
+      {
+        id: payload.id,
+        name: payload.name,
+        img: payload.img,
+        price: payload.price,
+      },
+      payload.qty
+    );
+    setAdded(payload);
+  }, []);
+
+  // 自動關閉
+  useEffect(() => {
+    if (!added) return;
+    const t = setTimeout(() => setAdded(null), 3000);
+    return () => clearTimeout(t);
+  }, [added]);
+
+  // 抓商品
   useEffect(() => {
     if (!id) return;
     (async () => {
@@ -102,17 +125,16 @@ export default function ProductDetail() {
 
   const imgs = imagesFromProduct(p);
   const price = priceFromStore(p);
-  const storageTags = storageTagsFromProduct(p); // ← 取得保存方式
+  const storageTags = storageTagsFromProduct(p);
 
   const add = () => {
-    const img = imgs?.[0]?.src || "/images/placeholder.png";
-    cartStore.add({ id: p.id, name: p.name, img, price }, Math.max(1, qty));
-    alert("已加入購物車");
+    // 使用自訂彈出匡
+    showAddedToast({ id: p.id, name: p.name, img: imgs?.[0]?.src, price }, qty);
   };
 
   return (
     <Layout>
-      {/* ★★ Swiper 高度修正：務必存在（讓主圖不再空白） ★★ */}
+      {/* 修正 Swiper 高度 */}
       <style jsx global>{`
         .product-swiper,
         .product-swiper .swiper-wrapper,
@@ -121,7 +143,7 @@ export default function ProductDetail() {
         }
       `}</style>
 
-      <main className="max-w-6xl mx-auto pb-20 pt-[140px] px-10">
+      <main className="max-w-6xl mx-auto pb-24 pt-[140px] px-4 sm:px-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* 左：主圖 + 縮圖 */}
           <div className="w-full flex flex-col items-center gap-4">
@@ -182,12 +204,12 @@ export default function ProductDetail() {
           </div>
 
           {/* 右：內容 */}
-          <div className="flex pl-10 items-start pt-0 sm:pt-20">
-            <div className="right-info">
+          <div className="flex pl-0 sm:pl-10 items-start pt-0 sm:pt-20">
+            <div className="right-info w-full">
               <h1 className="text-2xl font-bold mb-2">{p.name}</h1>
               <div className="text-xl mb-2">NT$ {price}</div>
 
-              {/* 保存方式標籤（顯示在價格下方） */}
+              {/* 保存方式 */}
               {storageTags.length > 0 && (
                 <div className="mb-4 flex flex-wrap gap-2">
                   {storageTags.map((t, i) => {
@@ -234,7 +256,7 @@ export default function ProductDetail() {
 
               <button
                 onClick={add}
-                className="px-6 py-3 bg-black text-white rounded"
+                className="px-6 py-3 bg-black text-white rounded hover:opacity-90 transition"
               >
                 加入購物車
               </button>
@@ -253,7 +275,7 @@ export default function ProductDetail() {
           </div>
         )}
 
-        {/* 推薦產品（保底顯示至少一張卡） */}
+        {/* 推薦產品（與主按鈕共用同一個彈出匡） */}
         <section className="mt-16">
           <h3 className="text-xl font-bold mb-4">其他推薦產品</h3>
           <RelatedCarousel
@@ -261,19 +283,29 @@ export default function ProductDetail() {
             categories={p.categories}
             currentFirstImage={imgs?.[0]?.src || "/images/placeholder.png"}
             currentPrice={price}
+            onQuickAdd={(prod) => showAddedToast(prod, 1)}
           />
         </section>
       </main>
+
+      {/* ====== 新設計：加入購物車彈出匡 ====== */}
+      <AddToCartToast
+        open={!!added}
+        onClose={() => setAdded(null)}
+        item={added}
+        onGoCart={() => router.push("/cart")}
+      />
     </Layout>
   );
 }
 
-/* 推薦區：即使只剩自己，也會顯示自己一張卡 */
+/* 推薦區：把 onQuickAdd 往下傳進 HotProductsCarousel 的 onAdd */
 function RelatedCarousel({
   currentId,
   categories,
   currentFirstImage,
   currentPrice,
+  onQuickAdd,
 }) {
   return (
     <HotProductsCarousel
@@ -287,12 +319,89 @@ function RelatedCarousel({
         img: currentFirstImage,
         price: currentPrice,
       }}
-      onAdd={(prod) =>
-        cartStore.add(
-          { id: prod.id, name: prod.name, img: prod.img, price: prod.price },
-          1
-        )
-      }
+      onAdd={(prod) => {
+        const payload = {
+          id: prod.id,
+          name: prod.name,
+          img: prod.img,
+          price: prod.price,
+        };
+        // 寫入購物車 + 彈窗
+        cartStore.add(payload, 1);
+        onQuickAdd?.(payload);
+      }}
     />
+  );
+}
+
+/* ========== 元件：加入購物車彈出匡（Bottom Toast） ========== */
+function AddToCartToast({ open, onClose, item, onGoCart }) {
+  const visible = !!open && !!item;
+
+  // 防止背景滾動（Toast 開啟時）
+  useEffect(() => {
+    if (!visible) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [visible]);
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <>
+          {/* 半透明遮罩（可點關閉） */}
+          <motion.button
+            aria-label="關閉彈出視窗"
+            className="fixed inset-0 bg-black/30 z-40"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+          />
+
+          {/* Bottom sheet / Toast */}
+          <motion.div
+            className="fixed z-50 left-1/2 -translate-x-1/2 bottom-4 w-[92vw] sm:w-[560px]"
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 380, damping: 36 }}
+          >
+            <div className="rounded-2xl bg-white shadow-xl ring-1 ring-black/10 overflow-hidden">
+              <div className="p-3 sm:p-4 flex items-center gap-3">
+                <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-stone-100 shrink-0">
+                  {item?.img && (
+                    <Image
+                      src={item.img}
+                      alt={item?.name || "product"}
+                      fill
+                      className="object-contain"
+                      sizes="64px"
+                    />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate">
+                    已加入購物車：{item?.name}
+                  </p>
+                  <p className="text-xs text-stone-600 mt-0.5">
+                    數量 × {item?.qty}　|　NT${item?.price}
+                  </p>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="px-3 py-2 text-sm rounded-lg hover:bg-stone-100"
+                >
+                  關閉
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }

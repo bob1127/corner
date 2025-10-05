@@ -1,228 +1,262 @@
 // components/HotProductsCarousel.jsx
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import Image from "next/image";
 
-/**
- * 熱銷產品 Embla Carousel（自動抓 Woo Store API，保底至少顯示一張）
- *
- * @param {Array}    items         - 可選，手動提供資料 [{ id, name, price, img, leftNote?, rightNote? }]
- * @param {Function} onAdd         - 可選，加入購物車 callback (p)=>void
- * @param {boolean}  fetchFromWoo  - 預設 true；若 true 且 items 為空，會打 /api/store/products
- * @param {number}   perPage       - 預設 12；抓取數量
- * @param {number}   excludeId     - 可選；排除目前商品 id（若清單變空會自動用自己補上）
- * @param {number[]} categoryIds   - 可選；優先排序含此分類 id 的商品
- * @param {object}   fallbackItem  - 可選；最後萬一仍為空，用這個單卡顯示
- */
 export default function HotProductsCarousel({
-  items = [],
-  onAdd,
-  fetchFromWoo = true,
+  apiPath = "/api/store/products",
   perPage = 12,
-  excludeId,
   categoryIds = [],
+  excludeId,
+  items: presetItems = [],
+  onAdd,
   fallbackItem,
 }) {
+  const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState([]);
-  const [error, setError] = useState("");
+  const [err, setErr] = useState("");
 
-  // 自動播放：3 秒一格、滑鼠移入暫停
+  // ── Embla：順滑設定（保留慣性，但仍會貼齊）
   const autoplay = useRef(
     Autoplay({ delay: 3000, stopOnInteraction: false, stopOnMouseEnter: true })
   );
-
   const [emblaRef, emblaApi] = useEmblaCarousel(
-    { loop: true, align: "start", slidesToScroll: 1, dragFree: false },
+    {
+      loop: true,
+      align: "start",
+      dragFree: true,
+      containScroll: "trimSnaps",
+      duration: 30,
+    },
     [autoplay.current]
   );
 
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
-  // ---- 抓 Woo 資料（或使用外部傳入的 items）----
+  // 抓資料
   useEffect(() => {
-    if (!fetchFromWoo || (items && items.length > 0)) return;
-
+    if (presetItems?.length) return;
+    let aborted = false;
     (async () => {
       try {
-        const r = await fetch(`/api/store/products?per_page=${perPage}`);
-        const data = await r.json();
+        setLoading(true);
+        setErr("");
+        const qs = new URLSearchParams();
+        if (perPage) qs.set("per_page", String(perPage));
+        if (categoryIds?.length) qs.set("categories", categoryIds.join(","));
+        const r = await fetch(`${apiPath}?${qs.toString()}`, {
+          cache: "no-store",
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const json = await r.json();
+        const arr = Array.isArray(json) ? json : json?.data || [];
+        if (!Array.isArray(arr)) throw new Error("API 格式錯誤");
 
-        // 兼容 array 或 {data:[...]}
-        const arr = Array.isArray(data) ? data : data?.data || [];
-        if (!Array.isArray(arr)) throw new Error("Woo API response 格式錯誤");
-
-        // 排除自己（若過濾後為空，會在下方補回）
         let list = excludeId ? arr.filter((x) => x.id !== excludeId) : arr;
 
-        // 優先同分類（有交集者排前面）
-        if (Array.isArray(categoryIds) && categoryIds.length) {
+        if (categoryIds?.length) {
           const catSet = new Set(categoryIds);
-          list = [...list].sort((a, b) => {
-            const aHit = (a.categories || []).some((c) => catSet.has(c.id));
-            const bHit = (b.categories || []).some((c) => catSet.has(c.id));
-            return Number(bHit) - Number(aHit);
+          list.sort((a, b) => {
+            const ah = (a.categories || []).some((c) => catSet.has(c.id));
+            const bh = (b.categories || []).some((c) => catSet.has(c.id));
+            return Number(bh) - Number(ah);
           });
         }
 
-        // ★ 如果排除自己後沒有其他商品 → 用自己補回（確保至少有一張卡）
         if (!list.length && excludeId) {
           const self = arr.find((x) => x.id === excludeId);
           if (self) list = [self];
         }
 
-        // 映射成元件需要的格式
         let mapped = list.map((x) => ({
           id: x.id,
+          slug: x.slug,
           name: x.name,
           price: x?.prices?.price ? Number(x.prices.price) / 100 : undefined,
           img: x?.images?.[0]?.src || "/images/placeholder.png",
           leftNote: "季節限定",
           rightNote: "クラフトラガー",
-          slug: x?.slug,
         }));
 
-        // 最終保底（仍為空時）
-        if (!mapped.length && fallbackItem) {
-          mapped = [fallbackItem];
-        }
-
-        setFetched(mapped);
+        if (!mapped.length && fallbackItem) mapped = [fallbackItem];
+        if (!aborted) setFetched(mapped);
       } catch (e) {
-        setError(String(e?.message || e));
+        if (!aborted) setErr(e?.message || String(e));
+      } finally {
+        if (!aborted) setLoading(false);
       }
     })();
-  }, [fetchFromWoo, items, perPage, excludeId, categoryIds, fallbackItem]);
+    return () => {
+      aborted = true;
+    };
+  }, [
+    apiPath,
+    perPage,
+    categoryIds,
+    excludeId,
+    presetItems?.length,
+    fallbackItem,
+  ]);
 
-  // 最終要渲染的資料來源：有手動 items 用 items，否則用 fetched；最後再 fallback
   const data = useMemo(() => {
-    if (items?.length) return items;
+    if (presetItems?.length) return presetItems;
     if (fetched?.length) return fetched;
     if (fallbackItem) return [fallbackItem];
     return [];
-  }, [items, fetched, fallbackItem]);
+  }, [presetItems, fetched, fallbackItem]);
 
-  if (error) return <div className="text-red-600">{error}</div>;
-  if (!data?.length)
-    return <div className="text-gray-500">暫無其他商品，敬請期待</div>;
+  if (err) return <div className="text-red-600">載入失敗：{err}</div>;
+  if (!loading && !data.length)
+    return <div className="text-gray-500">暫無其他商品</div>;
 
   return (
     <div className="relative w-full">
-      {/* 右上角箭頭 */}
-      <div className="pointer-events-auto absolute -top-5 right-2 z-10 flex gap-2">
-        <button
-          onClick={scrollPrev}
-          aria-label="上一個"
-          className="size-9 rounded-full bg-white text-black/80 shadow ring-1 ring-black/10 hover:bg-black hover:text-white transition"
-        >
-          ‹
-        </button>
-        <button
-          onClick={scrollNext}
-          aria-label="下一個"
-          className="size-9 rounded-full bg-white text-black/80 shadow ring-1 ring-black/10 hover:bg-black hover:text-white transition"
-        >
-          ›
-        </button>
+      {/* 左右箭頭（手機也顯示；置中不裁切） */}
+      <button
+        onClick={scrollPrev}
+        aria-label="上一個"
+        className="absolute z-10 left-1 top-1/2 -translate-y-1/2 grid place-items-center size-9 rounded-full bg-white/95 text-black/80 shadow ring-1 ring-black/10 hover:bg-black hover:text-white transition"
+      >
+        ‹
+      </button>
+      <button
+        onClick={scrollNext}
+        aria-label="下一個"
+        className="absolute z-10 right-1 top-1/2 -translate-y-1/2 grid place-items-center size-9 rounded-full bg-white/95 text-black/80 shadow ring-1 ring-black/10 hover:bg-black hover:text-white transition"
+      >
+        ›
+      </button>
+
+      {/* Embla 視窗：加 px-4 以免卡片被左右裁切 */}
+      <div className="overflow-hidden px-4" ref={emblaRef}>
+        {/* 用 -ml-4 + 子項 pr-4 來製造間距（不影響寬度計算） */}
+        <div className="embla__container -ml-4 select-none touch-pan-y">
+          {(loading ? Array.from({ length: Math.min(4, perPage) }) : data).map(
+            (p, idx) => (
+              <div
+                key={p?.id ?? idx}
+                className="embla__slide pr-4 flex-none min-w-0"
+              >
+                {loading ? (
+                  <SkeletonCard />
+                ) : (
+                  <article className="group bg-white overflow-visible flex flex-col h-full shadow-sm hover:shadow-md transition rounded-xl">
+                    <div className="relative w-full aspect-[4/5]">
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="h-[86%] w-[66%] rounded-full bg-stone-100" />
+                      </div>
+
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-1 sm:pl-2 pointer-events-none">
+                        <span className="[writing-mode:vertical-rl] text-[10px] sm:text-[11px] tracking-widest text-stone-400 select-none">
+                          {p.leftNote ?? "季節限定"}
+                        </span>
+                      </div>
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-1 sm:pr-2 pointer-events-none">
+                        <span className="[writing-mode:vertical-rl] text-[10px] sm:text-[11px] tracking-widest text-stone-400 select-none">
+                          {p.rightNote ?? "クラフトラガー"}
+                        </span>
+                      </div>
+
+                      <Image
+                        src={p.img}
+                        alt={p.name}
+                        fill
+                        sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, (max-width:1280px) 33vw, 25vw"
+                        className="object-contain transition-transform duration-300 group-hover:-translate-y-1"
+                      />
+
+                      <button
+                        onClick={() => onAdd?.(p)}
+                        aria-label="加入購物車"
+                        className="absolute bottom-[18%] right-[12%] size-9 sm:size-10 rounded-full bg-white text-black shadow ring-1 ring-black/10 grid place-items-center hover:bg-black hover:text-white transition"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    <div className="px-3 sm:px-4 pt-3 pb-5 flex-1 flex flex-col">
+                      <div>
+                        <h3 className="text-[13px] font-bold leading-tight line-clamp-2">
+                          {p.name}
+                        </h3>
+                        <div className="mt-1 text-[12px] text-stone-500">
+                          {typeof p.price !== "undefined"
+                            ? `NT$${p.price}`
+                            : ""}
+                        </div>
+                      </div>
+                      <div className="mt-auto pt-3 flex gap-2">
+                        <a
+                          href={`/product/${p.id}`}
+                          className="flex-1 rounded-full border py-2 text-xs text-center hover:bg-black hover:text-white transition"
+                        >
+                          查看
+                        </a>
+                        <button
+                          onClick={() => onAdd?.(p)}
+                          className="flex-1 rounded-full bg-black text-white py-2 text-xs hover:opacity-90 transition"
+                        >
+                          加入購物車
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                )}
+              </div>
+            )
+          )}
+        </div>
       </div>
 
-      {/* Embla */}
-      <div className="overflow-hidden" ref={emblaRef}>
-        <div className="embla__container flex">
-          {data.map((p, idx) => (
-            <div
-              key={p.id ?? idx}
-              className="
-                embla__slide px-4 
-                flex-[0_0_100%] sm:flex-[0_0_50%] lg:flex-[0_0_25%]
-              "
-            >
-              {/* 卡片（大量留白、極淡陰影） */}
-              <article className="group bg-white overflow-visible flex flex-col h-full shadow-sm hover:shadow-md transition">
-                {/* 視覺區 */}
-                <div className="relative w-full aspect-[4/5]">
-                  {/* 超淡橢圓背景 */}
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="h-[86%] w-[66%] rounded-full bg-stone-100"></div>
-                  </div>
+      {/* 斷點寬度（!important 覆蓋一切，保證不擠 & 手機一張） */}
+      <style jsx>{`
+        .embla__container {
+          display: flex;
+        }
+        /* 手機：單張滿版（不裁邊） */
+        .embla__slide {
+          flex: 0 0 100% !important;
+          min-width: 100% !important;
+        }
+        /* sm ≥640px：兩張 */
+        @media (min-width: 640px) {
+          .embla__slide {
+            flex: 0 0 50% !important;
+            min-width: 50% !important;
+          }
+        }
+        /* md ≥768px：三張 */
+        @media (min-width: 768px) {
+          .embla__slide {
+            flex: 0 0 33.3333% !important;
+            min-width: 33.3333% !important;
+          }
+        }
+        /* lg ≥1024px：四張 */
+        @media (min-width: 1024px) {
+          .embla__slide {
+            flex: 0 0 25% !important;
+            min-width: 25% !important;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
 
-                  {/* 直書輔助字 */}
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
-                    <span className="[writing-mode:vertical-rl] text-[11px] tracking-widest text-stone-400 select-none">
-                      {p.leftNote ?? "季節限定"}
-                    </span>
-                  </div>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                    <span className="[writing-mode:vertical-rl] text-[11px] tracking-widest text-stone-400 select-none">
-                      {p.rightNote ?? "クラフトラガー"}
-                    </span>
-                  </div>
-
-                  {/* 商品圖（next/image 需設定 remotePatterns：inf.fjg.mybluehost.me、i0.wp.com） */}
-                  <Image
-                    src={p.img}
-                    alt={p.name}
-                    fill
-                    priority={false}
-                    className="object-contain transition-transform duration-300 group-hover:-translate-y-1"
-                    sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 25vw"
-                  />
-
-                  {/* 右下角 + 快捷加入購物車 */}
-                  <button
-                    onClick={() => onAdd?.(p)}
-                    aria-label="加入購物車"
-                    className="
-                      absolute bottom-[20%] right-[16%]
-                      size-10 rounded-full bg-white text-black shadow
-                      ring-1 ring-black/10
-                      grid place-items-center
-                      hover:bg-black hover:text-white transition
-                    "
-                  >
-                    +
-                  </button>
-                </div>
-
-                {/* 文案 */}
-                <div className="px-4 pt-3 pb-5 flex-1 flex flex-col">
-                  <div>
-                    <h3 className="text-[13px] font-bold leading-tight line-clamp-2">
-                      {p.name}
-                    </h3>
-                    <div className="mt-1 text-[12px] text-stone-500">
-                      {typeof p.price !== "undefined" ? `NT$${p.price}` : ""}
-                    </div>
-                  </div>
-
-                  {/* 操作 */}
-                  <div className="mt-auto pt-3 flex gap-2">
-                    <a
-                      href={`/product/${p.id}`}
-                      className="flex-1 rounded-full border py-2 text-xs text-center hover:bg-black hover:text-white transition"
-                    >
-                      查看
-                    </a>
-                    <button
-                      onClick={() => onAdd?.(p)}
-                      className="flex-1 rounded-full bg-black text-white py-2 text-xs hover:opacity-90 transition"
-                    >
-                      加入購物車
-                    </button>
-                  </div>
-                </div>
-              </article>
-            </div>
-          ))}
+function SkeletonCard() {
+  return (
+    <div className="rounded-xl overflow-hidden shadow-sm bg-white">
+      <div className="animate-pulse">
+        <div className="w-full aspect-[4/5] bg-stone-100" />
+        <div className="p-4">
+          <div className="h-3 w-4/5 bg-stone-200 rounded mb-2" />
+          <div className="h-3 w-2/5 bg-stone-200 rounded" />
+          <div className="mt-4 h-8 bg-stone-200 rounded" />
         </div>
       </div>
     </div>
