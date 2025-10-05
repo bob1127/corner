@@ -372,7 +372,7 @@ export const SlideTabsExample = () => {
                 animate="animate"
                 exit="exit"
                 className="fixed right-4 ml-4 top-4 z-[1100] w-[min(920px,92vw)] rounded-2xl
-             border border-black/10 bg-white/98 shadow-2xl h-[92vh] backdrop-blur-md"
+             border border-black/10 bg-white/98 shadow-2xl  backdrop-blur-md"
               >
                 {/* Header */}
                 <div className="flex items-center justify-between gap-3 border-b border-black/10 px-5 py-3">
