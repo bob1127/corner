@@ -351,26 +351,6 @@ export const SlideTabsExample = () => {
                   </span>
                 )}
               </button>
-
-              {/* 漢堡（手機） */}
-              {/* 漢堡（手機） */}
-              <div className="md:hidden pl-1">
-                <button
-                  aria-label="open menu"
-                  className={`grid h-10 w-10 place-items-center rounded-full border transition-colors ${
-                    isMenuOpen
-                      ? "bg-white border-gray-300 shadow-sm"
-                      : "bg-white/90 border-gray-300 hover:bg-white"
-                  }`}
-                  onClick={() => setIsMenuOpen((v) => !v)}
-                >
-                  {isMenuOpen ? (
-                    <X className="text-gray-700" />
-                  ) : (
-                    <Menu className="text-gray-700" />
-                  )}
-                </button>
-              </div>
             </div>
           </div>
         </div>
