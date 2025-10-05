@@ -1,0 +1,11 @@
+### 加入購物車
+POST https://starislandbaby.com/test/wp-json/wc/store/cart/add-item
+Content-Type: application/json
+
+{
+  "id": 123,
+  "quantity": 1
+}
+
+### 檢視購物車內容
+GET https://starislandbaby.com/test/wp-json/wc/store/cart

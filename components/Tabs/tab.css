@@ -1,0 +1,17 @@
+.cardBod{
+   border: none !important;
+}
+
+
+*{
+    outline: none !important;
+      box-shadow:none !important;
+}
+
+.outline-none{
+   outline: none !important;
+   
+}
+.shadow-medium{
+   box-shadow:none !important;
+}

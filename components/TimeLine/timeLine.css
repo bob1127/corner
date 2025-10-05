@@ -1,0 +1,55 @@
+.wrapper {
+  overflow-x: hidden;
+  position: relative;
+}
+
+* {
+  -webkit-box-sizing: border-box;
+          box-sizing: border-box;
+}
+
+.container {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  height: 80vh;
+  padding-top: 160px;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.container .col {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  gap: 3em;
+}
+
+.container section {
+  width: 40vw;
+  padding: 20vw 10vw;
+}
+
+.container section h1 {
+  margin: 0;
+}
+
+.container section p {
+  width: 50vw;
+}
+
+.container section ul {
+  list-style-type: none;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  gap: 3em;
+  width: 100%;
+  height: 300px;
+  padding: 0;
+}
+
+section {
+  height: auto;
+}
+/*# sourceMappingURL=timeLine.css.map */

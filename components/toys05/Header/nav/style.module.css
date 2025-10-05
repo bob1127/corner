@@ -1,0 +1,54 @@
+.menu {
+  height: 100vh;
+  background-color: #292929;
+  position: fixed;
+  right: 0;
+  top: 0;
+  color: white;
+  z-index: 3;
+}
+
+.menu .body {
+  -webkit-box-sizing: border-box;
+          box-sizing: border-box;
+  height: 100%;
+  padding: 100px;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+  -webkit-box-pack: justify;
+      -ms-flex-pack: justify;
+          justify-content: space-between;
+}
+
+.menu .body .nav {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+  font-size: 56px;
+  gap: 12px;
+  margin-top: 80px;
+}
+
+.menu .body .nav .header {
+  color: #999999;
+  border-bottom: 1px solid #999999;
+  text-transform: uppercase;
+  font-size: 11px;
+  margin-bottom: 40px;
+}
+
+.menu .body .nav a {
+  text-decoration: none;
+  color: white;
+  font-weight: 300;
+}
+/*# sourceMappingURL=style.module.css.map */

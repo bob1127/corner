@@ -1,0 +1,68 @@
+.header {
+  padding-top: 5px;
+  position: relative;
+  display: none;
+  z-index: 999999999;
+}
+
+.header .button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #01A5D3;
+  cursor: pointer;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+  -webkit-box-pack: center;
+      -ms-flex-pack: center;
+          justify-content: center;
+}
+
+.header .burger {
+  width: 100%;
+}
+
+.header .burger::after, .header .burger::before {
+  content: "";
+  display: block;
+  height: 1px;
+  width: 40%;
+  margin: auto;
+  background-color: white;
+  position: relative;
+  -webkit-transition: -webkit-transform 0.3s;
+  transition: -webkit-transform 0.3s;
+  transition: transform 0.3s;
+  transition: transform 0.3s, -webkit-transform 0.3s;
+}
+
+.header .burger::after {
+  top: -5px;
+}
+
+.header .burger::before {
+  top: 5px;
+}
+
+.header .burgerActive::after {
+  -webkit-transform: rotate(45deg);
+          transform: rotate(45deg);
+  top: -1px;
+}
+
+.header .burgerActive::before {
+  -webkit-transform: rotate(-45deg);
+          transform: rotate(-45deg);
+  top: 0px;
+}
+
+@media screen and (max-width: 768px) {
+  .header {
+    display: block;
+  }
+}
+/*# sourceMappingURL=style.module.css.map */

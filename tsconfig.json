@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+  "next-env.d.ts",
+  "**/*.ts",
+  "**/*.tsx",
+  ".next/types/**/*.ts",
+  "constants/data.js",
+  "pages/page.jsx",
+  "components/AnimatedGradient/components/Carousel/CarouselItem.jsx",
+  "components/AnimatedGradient/components/Carousel/CarouselIndicator.jsx",
+  "components/AnimatedGradient/components/Carousel/Carousel.jsx",
+  "components/Carousel/index.jsx",
+  "components/ui/footer.jsx",
+  "pages/Layout.js",
+  "pages/_app.jsx"
+, "pages/Cart.jsx", "pages/checkout.jsx", "pages/api/create-order.js", "pages/api/newebpay-notify.js", "pages/contact.jsx", "components/CheckoutForm.jsx", "pages/sku-map/page.jsx", "src/utils/ezpay/invoice.ts", "pages/test-callback.js", "test-callback.ts", "tradeinfo.js", "pages/api/linepay/confirm.js", "pages/api/linepay/reserve.js"]
+,
+  "exclude": ["node_modules"]
+}

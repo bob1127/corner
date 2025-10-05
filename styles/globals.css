@@ -1,0 +1,255 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+@font-face {
+  font-family: 'DF-01';
+  src: url('/fonts/DF-01.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "WangZheGuiLai";
+  src: url("/fonts/王者歸來-華康海報體W12.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: "ResourceHanRoundedCN-Heavy";
+  src: url("/fonts/ResourceHanRoundedCN-Heavy.woff2") format("woff2"),
+       url("/fonts/ResourceHanRoundedCN-Heavy.woff") format("woff");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+.primary {
+  @apply bg-brand text-white rounded-xl px-4 py-2 hover:bg-brand/80 transition;
+}
+ .custom-modal .custom-modal-content {
+  width: 70vw !important;
+  max-width: 70vw !important;
+}
+.backdrop-blur-lg{
+  --tw-backdrop-blur: blur(0)!important;
+}
+:root{
+  /* 購買按鈕 */
+  --color-buy-dark:#2c81db;
+    /* 卡片 */
+    --color-card-1:#ef4023;
+      --color-card-2:#2382ef;
+}
+.product_info .transition-transform{
+  display: none !important;
+ 
+}
+.bg-content1{
+  background: transparent !important;
+}
+.shadow-medium {
+    box-shadow: none !important;
+}
+.Logo-section span{
+  color: white !important;
+}
+/* 按鈕 */
+.bg-buy-dark{
+  background-color: var(--color-buy-dark);
+}
+/* 卡片 */
+.bg-card-1{
+   background-color: var(--color-card-1);
+}
+.bg-card-2{
+   background-color: var(--color-card-2);
+}
+/* Additional styles */
+/* @import './additional-styles/range-slider.css';
+@import './additional-styles/theme.css';
+@import './additional-styles/toggle-switch.css';
+@import './additional-styles/utility-patterns.css'; */
+/* *{ outline: none !important;
+      box-shadow:none !important;}
+      .group[data-selected=true] .group-data-\[selected\=true\]\:text-default-foreground {
+        color: white !important;
+      } */
+
+/* .navlink:hover{
+  background: rgba(255,255,255,.5);
+} */
+.image-swiper-button-next{
+  width: 50px;
+  height: 50px;
+  border: 1px solid #000;
+}
+.inset-00{
+  background-color: orangered;
+}
+.swiper-slide-thumb-active{
+  border: solid 1.4px rgb(62, 62, 62) !important;
+  padding: 4px;
+  overflow: hidden;
+
+}
+
+
+
+.article-title{
+  font-size: 40px;
+  font-weight: 800;
+  color: #333;
+  
+}
+
+
+@media screen and (max-width:500px){
+  
+.article-title{
+  font-size: 26px;
+  font-weight: 900;
+  color: #161616;
+  
+}
+
+
+}
+.article-h2{
+   font-size: 28px;
+  color: #434343;
+  font-weight: 800;
+  text-align: left;
+  margin-top: 40px;
+  margin-bottom: 20px;
+
+}
+
+
+@media screen and (max-width:500px){
+  
+.article-h2{
+  font-size: 20px;
+  font-weight: 700;
+  color: #191919;
+  
+}
+
+
+}
+
+.article-h3{
+  font-size: 24px;
+  color: #4a4a4a;
+  font-weight: 500;
+  margin-top:25px;
+}
+
+@media screen and (max-width:500px){
+  
+.article-h3{
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+  
+}
+
+
+}
+
+
+
+
+.mainTitle{
+  margin-top:68px;
+  text-align: center ;
+ 
+}
+.text-Hp{
+  margin-bottom: 24px;
+  color: rgb(51,51,51) !important;
+}
+.h3-Hp{
+  margin-bottom:24px;
+  margin-top: 68px;
+  color: rgb(190,96,90) !important;
+  font-size: 26px;
+  line-height: 1.2;
+  
+}
+.blank{
+  margin-top: 68px;
+
+}
+.blank02{
+  margin-bottom: 24px;
+ 
+
+}
+.model{
+  margin-top:12px;
+  margin-bottom: 16px;
+  line-height: 22px;
+  color: rgb(190,96,90);
+  font-size: 18px;
+  text-align:left;
+
+  
+  
+}
+
+
+.h1-Hp{
+
+}
+
+/* UX系列 */
+
+.h1-u{
+  font-size: 26px;
+  line-height: 31px;
+  color:rgb(51,51,51);
+}
+.h2-u{
+  font-size: 32px;
+  line-height: 48px;
+  margin-top: 68px;
+
+}
+.h3-u{
+   color: #F78C26;
+   font-size: 26px;
+   line-height: 31px;
+}
+.model-u{
+  margin-top:12px;
+  margin-bottom: 16px;
+  line-height: 22px;
+   color: #F78C26;
+  font-size: 18px;
+  text-align:left;
+
+  
+  
+}
+
+
+.text-middle-u{
+  font-size: 16px;
+  line-height: 24px ;
+  margin-bottom: 24px;
+ 
+  
+}
+
+
+.model-u{
+  font-size: 18px;
+  margin-top: 12px;
+  margin-bottom: 16px;
+  font-weight: 700;
+
+  
+   color:#F78C26;
+  
+  
+}
+

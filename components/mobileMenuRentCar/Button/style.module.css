@@ -1,0 +1,92 @@
+.button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 40px;
+  cursor: pointer;
+  border-radius: 25px;
+  overflow: hidden;
+}
+
+.button .slider {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.button .slider .el {
+  width: 100%;
+  height: 100%;
+  border: solid 3px black;
+  border-radius: 50px;
+  background-color: white;
+}
+
+.button .slider .el p {
+  margin: 0px;
+}
+
+.button .slider .el:nth-of-type(2) {
+  background-color: black;
+}
+
+.button .slider .el:nth-of-type(2) p {
+  color: #e4f4cd;
+}
+
+.button .slider .el:hover .perspectiveText {
+  -webkit-transform: rotateX(90deg);
+          transform: rotateX(90deg);
+}
+
+.button .slider .el:hover .perspectiveText p:nth-of-type(1) {
+  -webkit-transform: translateY(-100%);
+          transform: translateY(-100%);
+  opacity: 0;
+}
+
+.button .slider .el:hover .perspectiveText p:nth-of-type(2) {
+  opacity: 1;
+}
+
+.perspectiveText {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+  -webkit-box-pack: center;
+      -ms-flex-pack: center;
+          justify-content: center;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+  height: 100%;
+  width: 100%;
+  -webkit-transform-style: preserve-3d;
+          transform-style: preserve-3d;
+  -webkit-transition: -webkit-transform 0.75s cubic-bezier(0.76, 0, 0.24, 1);
+  transition: -webkit-transform 0.75s cubic-bezier(0.76, 0, 0.24, 1);
+  transition: transform 0.75s cubic-bezier(0.76, 0, 0.24, 1);
+  transition: transform 0.75s cubic-bezier(0.76, 0, 0.24, 1), -webkit-transform 0.75s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.perspectiveText p {
+  -webkit-transition: all 0.75s cubic-bezier(0.76, 0, 0.24, 1);
+  transition: all 0.75s cubic-bezier(0.76, 0, 0.24, 1);
+  pointer-events: none;
+  text-transform: uppercase;
+}
+
+.perspectiveText p:nth-of-type(2) {
+  position: absolute;
+  -webkit-transform-origin: bottom center;
+          transform-origin: bottom center;
+  -webkit-transform: rotateX(-90deg) translateY(9px);
+          transform: rotateX(-90deg) translateY(9px);
+  opacity: 0;
+}
+/*# sourceMappingURL=style.module.css.map */
