@@ -185,7 +185,7 @@ export default function HotProductsCarousel({
                         </h3>
                         <div className="mt-1 text-[12px] text-stone-500">
                           {typeof p.price !== "undefined"
-                            ? `NT$${p.price}`
+                            ? `CA$${p.price}`
                             : ""}
                         </div>
                       </div>

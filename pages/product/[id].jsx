@@ -207,7 +207,7 @@ export default function ProductDetail() {
           <div className="flex pl-0 sm:pl-10 items-start pt-0 sm:pt-20">
             <div className="right-info w-full">
               <h1 className="text-2xl font-bold mb-2">{p.name}</h1>
-              <div className="text-xl mb-2">NT$ {price}</div>
+              <div className="text-xl mb-2">CA$ {price}</div>
 
               {/* 保存方式 */}
               {storageTags.length > 0 && (
@@ -388,7 +388,7 @@ function AddToCartToast({ open, onClose, item, onGoCart }) {
                     已加入購物車：{item?.name}
                   </p>
                   <p className="text-xs text-stone-600 mt-0.5">
-                    數量 × {item?.qty}　|　NT${item?.price}
+                    數量 × {item?.qty}　|　CA${item?.price}
                   </p>
                 </div>
                 <button

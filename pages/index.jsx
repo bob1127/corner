@@ -220,7 +220,7 @@ export default function Home() {
                         <b>{p.name}</b>
                         {price !== null && (
                           <div className="text-sm text-gray-600">
-                            NT$ {price}
+                            CA$ {price}
                           </div>
                         )}
                       </div>

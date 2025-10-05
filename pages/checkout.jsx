@@ -204,9 +204,9 @@ export default function CheckoutPage() {
                       <span className="text-[15px] font-medium">{a.label}</span>
                     </div>
                     <div className="ml-auto text-sm text-gray-600">
-                      運費 NT${a.fee} ・ 稅 {a.tax}%
+                      運費 CA${a.fee} ・ 稅 {a.tax}%
                       <span className="block text-xs text-gray-500">
-                        滿 NT${a.freeThreshold} 免運
+                        滿 CA${a.freeThreshold} 免運
                       </span>
                     </div>
                   </label>
@@ -309,7 +309,7 @@ export default function CheckoutPage() {
                         </div>
                       </div>
                       <div className="text-sm font-semibold whitespace-nowrap">
-                        NT$
+                        CA$
                         {(
                           Number(it.price || 0) * (it.qty || 0)
                         ).toLocaleString()}
@@ -324,19 +324,19 @@ export default function CheckoutPage() {
             <div className="border-t pt-4 space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>小計</span>
-                <span>NT$ {subtotal.toLocaleString()}</span>
+                <span>CA$ {subtotal.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span>運費</span>
-                <span>NT$ {shippingFee.toLocaleString()}</span>
+                <span>CA$ {shippingFee.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span>稅金</span>
-                <span>NT$ {taxAmount.toLocaleString()}</span>
+                <span>CA$ {taxAmount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between font-semibold text-lg pt-2">
                 <span>總計</span>
-                <span>NT$ {total.toLocaleString()}</span>
+                <span>CA$ {total.toLocaleString()}</span>
               </div>
             </div>
 

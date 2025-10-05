@@ -79,7 +79,7 @@ export default function ThankYouPage() {
                     <p>
                       <span className="text-gray-500">總金額：</span>
                       <span className="font-bold text-gray-900">
-                        NT${order.total}
+                        CA${order.total}
                       </span>
                     </p>
                   </div>
@@ -139,7 +139,7 @@ export default function ThankYouPage() {
 
                             <div className="text-right">
                               <div className="font-semibold text-gray-900">
-                                NT${item.total}
+                                CA${item.total}
                               </div>
                             </div>
                           </div>
@@ -156,7 +156,7 @@ export default function ThankYouPage() {
                   <div className="flex justify-between text-[15px] mb-2">
                     <span className="text-gray-600">訂單總計</span>
                     <span className="font-extrabold text-lg text-gray-900">
-                      NT${order.total}
+                      CA${order.total}
                     </span>
                   </div>
                 </div>

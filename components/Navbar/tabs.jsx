@@ -260,7 +260,7 @@ export const SlideTabsExample = () => {
             </div>
 
             {/* 右：訂購 / 會員 / 購物車 / 漢堡 */}
-            <div className="flex w-2/3 md:w-1/3 items-center justify-end gap-3">
+            <div className="flex w-2/3 md:w-1/3 items-center justify-end pr-8 gap-3">
               <Link
                 href="/"
                 className="rounded-[30px] hidden sm:block border border-white/30 bg-[#9c2121] px-3 py-1 text-[14px] text-white hover:bg-[#881b1b] transition-colors"
@@ -372,7 +372,7 @@ export const SlideTabsExample = () => {
                 animate="animate"
                 exit="exit"
                 className="fixed right-4 ml-4 top-4 z-[1100] w-[min(920px,92vw)] rounded-2xl
-             border border-black/10 bg-white/98 shadow-2xl backdrop-blur-md"
+             border border-black/10 bg-white/98 shadow-2xl h-[92vh] backdrop-blur-md"
               >
                 {/* Header */}
                 <div className="flex items-center justify-between gap-3 border-b border-black/10 px-5 py-3">
@@ -465,7 +465,7 @@ export const SlideTabsExample = () => {
 
                                 <div className="flex flex-col items-end gap-2">
                                   <div className="text-sm font-semibold">
-                                    NT${" "}
+                                    CA${" "}
                                     {(
                                       Number(it.price || 0) * (it.qty || 0)
                                     ).toLocaleString()}
@@ -496,7 +496,7 @@ export const SlideTabsExample = () => {
                           <div className="flex justify-between">
                             <span className="text-black/70">小計</span>
                             <span className="font-medium">
-                              NT$ {subtotal.toLocaleString()}
+                              CA$ {subtotal.toLocaleString()}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -508,7 +508,7 @@ export const SlideTabsExample = () => {
                         <div className="mt-3 flex items-center justify-between border-t border-dashed border-black/10 pt-3">
                           <span className="font-semibold">總計</span>
                           <span className="text-lg font-bold">
-                            NT$ {subtotal.toLocaleString()}
+                            CA$ {subtotal.toLocaleString()}
                           </span>
                         </div>
 
