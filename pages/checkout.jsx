@@ -10,7 +10,8 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 /* === 固定加拿大地區、運費與稅率 === */
 const AREAS = [
   {
-    label: "Vancouver City (including…)",
+    label:
+      "Vancouver City (Includes West Side. East Van. UBC) **Excludes Downtown. North Van** ",
     value: "Vancouver City",
     fee: 12,
     tax: 5,
@@ -75,16 +76,21 @@ export default function CheckoutPage() {
   };
 
   async function handlePlaceOrder() {
-    if (!cart.length) return alert("購物車為空");
+    if (!cart.length) return alert("購物車為空\nCart is empty");
     if (!form.name || !form.phone || !form.email)
-      return alert("請填寫姓名、電話、Email");
-    if (!form.payment) return alert("請選擇付款方式");
-    if (!form.deliveryArea) return alert("請選擇外送地區");
-    if (!form.deliveryAddress.trim()) return alert("請輸入詳細地址");
+      return alert(
+        "請填寫姓名、電話、Email\nPlease enter name, phone, and email"
+      );
+    if (!form.payment)
+      return alert("請選擇付款方式\nPlease select a payment method");
+    if (!form.deliveryArea)
+      return alert("請選擇外送地區\nPlease select a delivery area");
+    if (!form.deliveryAddress.trim())
+      return alert("請輸入詳細地址\nPlease enter a full address");
 
     // 🚫 若未達 80 元門檻禁止下單
     if (subtotal < 80) {
-      alert("訂單必須滿 80 才能運送");
+      alert("訂單必須滿 80 才能運送\nOrder minimum CA$80 for delivery");
       return;
     }
 
@@ -106,7 +112,7 @@ export default function CheckoutPage() {
       const json = await resp.json();
       if (!resp.ok || !json?.ok) {
         const msg = json?.detail?.message || json?.message || "Woo 無回應";
-        return alert("下單失敗：" + msg);
+        return alert("下單失敗：" + msg + "\nOrder failed: " + msg);
       }
 
       const order = json.order;
@@ -114,7 +120,9 @@ export default function CheckoutPage() {
       router.push(`/thank-you?id=${order.id}`);
     } catch (e) {
       console.error(e);
-      alert("下單發生錯誤，請稍後再試");
+      alert(
+        "下單發生錯誤，請稍後再試\nSomething went wrong. Please try again later."
+      );
     } finally {
       setPlacing(false);
     }
@@ -128,7 +136,11 @@ export default function CheckoutPage() {
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             {/* 聯絡資訊 */}
             <section className="mb-8">
-              <h3 className="font-semibold text-lg mb-3">聯絡資訊</h3>
+              <h3 className="font-semibold text-lg mb-1">聯絡資訊</h3>
+              <span className="block text-xs text-gray-500 mb-3">
+                Contact Information
+              </span>
+
               <div className="space-y-3">
                 <input
                   type="email"
@@ -137,51 +149,70 @@ export default function CheckoutPage() {
                   onChange={onChange("email")}
                   className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-black/10"
                 />
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={form.subscribe}
-                    onChange={onChange("subscribe")}
-                  />
-                  訂閱最新優惠與消息
-                </label>
               </div>
             </section>
 
             {/* 收件人 */}
             <section className="mb-8">
-              <h3 className="font-semibold text-lg mb-3">收件人</h3>
+              <h3 className="font-semibold text-lg mb-1">收件人</h3>
+              <span className="block text-xs text-gray-500 mb-3">
+                Recipient
+              </span>
+
               <div className="grid grid-cols-2 gap-3">
-                <input
-                  placeholder="姓名"
-                  value={form.name}
-                  onChange={onChange("name")}
-                  className="border rounded-lg px-3 py-2 col-span-2 focus:ring-2 focus:ring-black/10"
-                />
-                <input
-                  placeholder="電話"
-                  value={form.phone}
-                  onChange={onChange("phone")}
-                  className="border rounded-lg px-3 py-2 col-span-2 focus:ring-2 focus:ring-black/10"
-                />
-                <input
-                  placeholder="WeChat（選填）"
-                  value={form.wechat}
-                  onChange={onChange("wechat")}
-                  className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-black/10"
-                />
-                <input
-                  placeholder="其他聯絡資訊"
-                  value={form.contactOther}
-                  onChange={onChange("contactOther")}
-                  className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-black/10"
-                />
+                <div className="col-span-2">
+                  <input
+                    placeholder="姓名"
+                    value={form.name}
+                    onChange={onChange("name")}
+                    className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-black/10"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Name</p>
+                </div>
+
+                <div className="col-span-2">
+                  <input
+                    placeholder="電話"
+                    value={form.phone}
+                    onChange={onChange("phone")}
+                    className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-black/10"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Phone</p>
+                </div>
+
+                <div>
+                  <input
+                    placeholder="WeChat（選填）"
+                    value={form.wechat}
+                    onChange={onChange("wechat")}
+                    className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-black/10"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    WeChat (Optional)
+                  </p>
+                </div>
+
+                <div>
+                  <input
+                    placeholder="其他聯絡資訊"
+                    value={form.contactOther}
+                    onChange={onChange("contactOther")}
+                    className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-black/10"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Other contact info
+                  </p>
+                </div>
               </div>
             </section>
 
             {/* 外送地區 */}
             <section className="mb-8">
-              <h3 className="font-semibold text-lg mb-3">外送地區</h3>
+              <h3 className="font-semibold text-lg mb-1">外送地區</h3>
+              <span className="block text-xs text-gray-500 mb-3">
+                Delivery Area
+              </span>
+
               <div className="rounded-xl border divide-y overflow-hidden">
                 {AREAS.map((a) => (
                   <label
@@ -204,9 +235,15 @@ export default function CheckoutPage() {
                       <span className="text-[15px] font-medium">{a.label}</span>
                     </div>
                     <div className="ml-auto text-sm text-gray-600">
-                      運費 CA${a.fee} ・ 稅 {a.tax}%
+                      <span>
+                        運費 CA${a.fee} ・ 稅 {a.tax}%
+                      </span>
                       <span className="block text-xs text-gray-500">
                         滿 CA${a.freeThreshold} 免運
+                      </span>
+                      <span className="block text-[12px] text-gray-500 mt-1">
+                        Shipping CA${a.fee} · Tax {a.tax}%<br />
+                        Free shipping over CA${a.freeThreshold}
                       </span>
                     </div>
                   </label>
@@ -214,33 +251,64 @@ export default function CheckoutPage() {
               </div>
 
               {form.deliveryArea && (
-                <input
-                  placeholder="地址（街道、門牌、城市、郵遞區號）"
-                  value={form.deliveryAddress}
-                  onChange={onChange("deliveryAddress")}
-                  className="mt-3 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-black/10"
-                />
+                <div className="mt-3">
+                  <input
+                    placeholder="地址（街道、門牌、城市、郵遞區號）"
+                    value={form.deliveryAddress}
+                    onChange={onChange("deliveryAddress")}
+                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-black/10"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Address (street, number, city, postal code)
+                  </p>
+                </div>
               )}
             </section>
 
             {/* 付款方式 */}
             <section>
-              <h3 className="font-semibold text-lg mb-3">付款方式</h3>
+              <h3 className="font-semibold text-lg mb-1">付款方式</h3>
+              <span className="block text-xs text-gray-500 mb-2">
+                Payment Method
+              </span>
+
+              <p className="text-sm text-gray-700 mb-3">
+                付款方式：會由客服人員聯繫匯款資訊
+                <span className="block text-[12px] text-gray-500">
+                  Payment details will be provided by customer service
+                </span>
+              </p>
+
               <div className="grid sm:grid-cols-2 gap-3">
-                {["貨到付款", "信用卡", "銀行轉帳", "LINE Pay"].map((opt) => (
+                {[
+                  { zh: "貨到付款", en: "Cash on Delivery" },
+                  { zh: "信用卡", en: "Credit Card" },
+                  { zh: "銀行轉帳", en: "Bank Transfer" },
+                  { zh: "LINE Pay", en: "LINE Pay" },
+                ].map((opt) => (
                   <label
-                    key={opt}
-                    className={`flex items-center gap-3 border rounded-lg p-3 cursor-pointer hover:bg-gray-50 transition ${
-                      form.payment === opt ? "border-black" : "border-gray-300"
+                    key={opt.zh}
+                    className={`flex items-start gap-3 border rounded-lg p-3 cursor-pointer hover:bg-gray-50 transition ${
+                      form.payment === opt.zh
+                        ? "border-black"
+                        : "border-gray-300"
                     }`}
                   >
                     <input
                       type="radio"
                       name="payment"
-                      checked={form.payment === opt}
-                      onChange={() => setForm((v) => ({ ...v, payment: opt }))}
+                      checked={form.payment === opt.zh}
+                      onChange={() =>
+                        setForm((v) => ({ ...v, payment: opt.zh }))
+                      }
+                      className="mt-[2px]"
                     />
-                    {opt}
+                    <span>
+                      {opt.zh}
+                      <span className="block text-[12px] text-gray-500">
+                        {opt.en}
+                      </span>
+                    </span>
                   </label>
                 ))}
               </div>
@@ -249,10 +317,18 @@ export default function CheckoutPage() {
 
           {/* 右側：訂單摘要 */}
           <aside className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 h-fit">
-            <h3 className="font-semibold text-lg mb-4">訂單摘要</h3>
+            <h3 className="font-semibold text-lg mb-1">訂單摘要</h3>
+            <span className="block text-xs text-gray-500 mb-4">
+              Order Summary
+            </span>
 
             {cart.length === 0 ? (
-              <p className="text-gray-500">目前沒有商品</p>
+              <p className="text-gray-500">
+                目前沒有商品
+                <span className="block text-xs text-gray-500">
+                  No items in cart
+                </span>
+              </p>
             ) : (
               <ul className="divide-y mb-4">
                 {cart.map((it) => (
@@ -304,7 +380,12 @@ export default function CheckoutPage() {
                             onClick={() => cartStore.remove(it.id)}
                           >
                             <Trash2 size={14} />
-                            刪除
+                            <span>
+                              刪除
+                              <span className="block text-[10px] text-gray-500 leading-none">
+                                Remove
+                              </span>
+                            </span>
                           </button>
                         </div>
                       </div>
@@ -323,19 +404,37 @@ export default function CheckoutPage() {
             {/* 概覽 */}
             <div className="border-t pt-4 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>小計</span>
+                <span>
+                  小計
+                  <span className="block text-[11px] text-gray-500">
+                    Subtotal
+                  </span>
+                </span>
                 <span>CA$ {subtotal.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span>運費</span>
+                <span>
+                  運費
+                  <span className="block text-[11px] text-gray-500">
+                    Shipping
+                  </span>
+                </span>
                 <span>CA$ {shippingFee.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span>稅金</span>
+                <span>
+                  稅金
+                  <span className="block text-[11px] text-gray-500">Tax</span>
+                </span>
                 <span>CA$ {taxAmount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between font-semibold text-lg pt-2">
-                <span>總計</span>
+                <span>
+                  總計
+                  <span className="block text-[12px] text-gray-500 font-normal">
+                    Total
+                  </span>
+                </span>
                 <span>CA$ {total.toLocaleString()}</span>
               </div>
             </div>
@@ -345,7 +444,12 @@ export default function CheckoutPage() {
               onClick={handlePlaceOrder}
               disabled={placing}
             >
-              {placing ? "建立訂單中…" : "確認下單"}
+              <span className="leading-tight">
+                {placing ? "建立訂單中…" : "確認下單"}
+                <span className="block text-xs text-white/80">
+                  {placing ? "Creating order…" : "Place Order"}
+                </span>
+              </span>
             </button>
           </aside>
         </div>

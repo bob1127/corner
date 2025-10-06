@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -43,6 +44,22 @@ const storageTagsFromProduct = (p) => {
   return [];
 };
 
+/* ---- 分頁參數 ---- */
+const PAGE_SIZE = 15;
+
+/* 產生精簡頁碼（含省略號） */
+function getVisiblePages(current, total) {
+  const pages = [];
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+    return pages;
+  }
+  if (current <= 4) return [1, 2, 3, 4, 5, "…", total];
+  if (current >= total - 3)
+    return [1, "…", total - 4, total - 3, total - 2, total - 1, total];
+  return [1, "…", current - 1, current, current + 1, "…", total];
+}
+
 export default function Home() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,20 +69,33 @@ export default function Home() {
   // 當前選中的分類（預設顯示全部）
   const [activeCat, setActiveCat] = useState(CATEGORIES[0].slug);
 
+  // 分頁
+  const [page, setPage] = useState(1);
+  const gridTopRef = useRef(null);
+
+  // 切換分類時回到第一頁
+  useEffect(() => {
+    setPage(1);
+  }, [activeCat]);
+
+  // 捲回商品區頂部
+  const scrollToGridTop = () => {
+    gridTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
-        // ✅ 如果 activeCat 為空，就抓全部
-        const url = `/api/store/products?per_page=48${
+        // 抓多一點，前端做分頁（若你要後端分頁，可改 API 支援 page）
+        const url = `/api/store/products?per_page=100${
           activeCat ? `&category=${activeCat}` : ""
         }`;
         const r = await fetch(url);
         const data = await r.json();
-        setItems(Array.isArray(data) ? data : []);
-        const init = Object.fromEntries(
-          (Array.isArray(data) ? data : []).map((p) => [p.id, 1])
-        );
+        const arr = Array.isArray(data) ? data : [];
+        setItems(arr);
+        const init = Object.fromEntries(arr.map((p) => [p.id, 1]));
         setQtyMap(init);
       } finally {
         setLoading(false);
@@ -106,6 +136,20 @@ export default function Home() {
     setQty(p.id, 0);
   };
 
+  // 分頁切片
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const pageItems = items.slice(pageStart, pageStart + PAGE_SIZE);
+
+  const goTo = (n) => {
+    const next = Math.min(Math.max(1, n), totalPages);
+    if (next !== page) {
+      setPage(next);
+      scrollToGridTop();
+    }
+  };
+
   return (
     <Layout>
       <div className="bg-[#f4f1f1] pt-20 sm:pt-0">
@@ -135,6 +179,7 @@ export default function Home() {
             width={1920}
             height={1080}
             className="w-full"
+            priority
           />
         </section>
 
@@ -175,6 +220,9 @@ export default function Home() {
 
         {/* 商品區 */}
         <section className="section-content min-h-screen pb-24">
+          {/* 捲動定位點 */}
+          <div ref={gridTopRef} />
+
           {loading ? (
             <div className="text-center py-20 text-gray-500">載入商品中…</div>
           ) : items.length === 0 ? (
@@ -182,124 +230,173 @@ export default function Home() {
               沒有符合的產品
             </div>
           ) : (
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeCat} // 每次切換分類時重新動畫
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -50 }}
-                transition={{ duration: 0.6, ease: "easeInOut" }}
-                className="grid max-w-[1600px] mx-auto w-[80%] grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-10 my-12"
-              >
-                {items.map((p) => {
-                  const q = qtyMap[p.id] ?? 0;
-                  const img = p?.images?.[0]?.src || "/images/placeholder.png";
-                  const price = p?.prices?.price
-                    ? Number(p.prices.price) / 100
-                    : null;
-                  const tags = storageTagsFromProduct(p);
-                  return (
-                    <div
-                      key={p.id}
-                      className="item flex flex-col justify-center items-center group   bg-white p-4  hover:shadow-md transition"
-                    >
-                      {/* 商品圖 */}
-                      <Link
-                        href={`/product/${p.id}`}
-                        aria-label={`${p.name} 內頁`}
+            <>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`${activeCat}-${safePage}`} // 切分類/頁面都重播動畫
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -50 }}
+                  transition={{ duration: 0.45, ease: "easeInOut" }}
+                  className="grid max-w-[1600px] mx-auto w-[92%] grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 sm:gap-8 my-12"
+                >
+                  {pageItems.map((p) => {
+                    const q = qtyMap[p.id] ?? 0;
+                    const img =
+                      p?.images?.[0]?.src || "/images/placeholder.png";
+                    const price = p?.prices?.price
+                      ? Number(p.prices.price) / 100
+                      : null;
+                    const tags = storageTagsFromProduct(p);
+                    return (
+                      <div
+                        key={p.id}
+                        className="item flex flex-col justify-center items-center group bg-white p-4   border border-gray-100 hover:shadow-md transition"
                       >
-                        <img
-                          src={img}
-                          alt={p.name}
-                          className="w-[200px] h-auto transition-transform group-hover:scale-[1.05]"
-                        />
-                      </Link>
+                        {/* 商品圖 */}
+                        <Link
+                          href={`/product/${p.id}`}
+                          aria-label={`${p.name} 內頁`}
+                        >
+                          <img
+                            src={img}
+                            alt={p.name}
+                            className="w-[200px] h-auto transition-transform group-hover:scale-[1.05]"
+                            loading="lazy"
+                          />
+                        </Link>
 
-                      {/* 標題與價格 */}
-                      <div className="item-info mt-3 text-center">
-                        <b>{p.name}</b>
-                        {price !== null && (
-                          <div className="text-sm text-gray-600">
-                            CA$ {price}
+                        {/* 標題與價格 */}
+                        <div className="item-info mt-3 text-center">
+                          <b className="line-clamp-2">{p.name}</b>
+                          {price !== null && (
+                            <div className="text-sm text-gray-600">
+                              CA$ {price}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 保存方式標籤 */}
+                        {tags.length > 0 && (
+                          <div className="mt-2 flex flex-wrap justify-center gap-2">
+                            {tags.map((t, i) => {
+                              const isCold = /冷藏/.test(t);
+                              const isFrozen = /冷凍/.test(t);
+                              const base =
+                                "inline-block px-3 py-1 rounded text-xs";
+                              const cls = isFrozen
+                                ? "bg-red-100 text-red-800"
+                                : isCold
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-gray-100 text-gray-800";
+                              return (
+                                <span key={i} className={`${base} ${cls}`}>
+                                  {t}
+                                </span>
+                              );
+                            })}
                           </div>
                         )}
-                      </div>
 
-                      {/* 保存方式標籤 */}
-                      {tags.length > 0 && (
-                        <div className="mt-2 flex flex-wrap justify-center gap-2">
-                          {tags.map((t, i) => {
-                            const isCold = /冷藏/.test(t);
-                            const isFrozen = /冷凍/.test(t);
-                            const base =
-                              "inline-block px-3 py-1 rounded text-xs";
-                            const cls = isFrozen
-                              ? "bg-red-100 text-red-800"
-                              : isCold
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-gray-100 text-gray-800";
-                            return (
-                              <span key={i} className={`${base} ${cls}`}>
-                                {t}
-                              </span>
-                            );
-                          })}
+                        {/* 數量控制 */}
+                        <div className="mt-4 flex items-center gap-3">
+                          <button
+                            onClick={() => setQty(p.id, q - 1)}
+                            className="rounded-xl border px-3 py-1"
+                            disabled={q <= 0}
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min={0}
+                            value={q}
+                            onChange={(e) =>
+                              setQty(
+                                p.id,
+                                Math.max(0, parseInt(e.target.value || "0", 10))
+                              )
+                            }
+                            className="w-16 rounded-xl border px-2 py-1 text-center"
+                          />
+                          <button
+                            onClick={() => setQty(p.id, q + 1)}
+                            className="rounded-xl border px-3 py-1"
+                          >
+                            +
+                          </button>
                         </div>
-                      )}
 
-                      {/* 數量控制 */}
-                      <div className="mt-4 flex items-center gap-3">
+                        {/* 加入購物車 */}
                         <button
-                          onClick={() => setQty(p.id, q - 1)}
-                          className="rounded-xl border px-3 py-1"
+                          onClick={() => addToCart(p)}
                           disabled={q <= 0}
+                          className={`mt-3 rounded-xl px-4 py-2 text-white ${
+                            q > 0
+                              ? "bg-black hover:opacity-90"
+                              : "bg-gray-400 cursor-not-allowed"
+                          }`}
                         >
-                          −
+                          加入購物車
                         </button>
-                        <input
-                          type="number"
-                          min={0}
-                          value={q}
-                          onChange={(e) =>
-                            setQty(
-                              p.id,
-                              Math.max(0, parseInt(e.target.value || "0", 10))
-                            )
-                          }
-                          className="w-16 rounded-xl border px-2 py-1 text-center"
-                        />
-                        <button
-                          onClick={() => setQty(p.id, q + 1)}
-                          className="rounded-xl border px-3 py-1"
+
+                        <Link
+                          href={`/product/${p.id}`}
+                          className="mt-2 text-xs underline underline-offset-4 hover:opacity-80"
                         >
-                          +
-                        </button>
+                          產品資訊
+                        </Link>
                       </div>
+                    );
+                  })}
+                </motion.div>
+              </AnimatePresence>
 
-                      {/* 加入購物車 */}
+              {/* 分頁列 */}
+              {totalPages > 1 && (
+                <nav
+                  aria-label="Products pagination"
+                  className="mx-auto w-[92%] max-w-[1600px] flex items-center justify-center gap-2 flex-wrap"
+                >
+                  <button
+                    onClick={() => goTo(page - 1)}
+                    disabled={page <= 1}
+                    className="px-3 py-2 rounded-lg border text-sm disabled:opacity-50 hover:bg-gray-50"
+                  >
+                    上一頁
+                  </button>
+
+                  {getVisiblePages(safePage, totalPages).map((p, i) =>
+                    p === "…" ? (
+                      <span key={`e-${i}`} className="px-2 text-gray-500">
+                        …
+                      </span>
+                    ) : (
                       <button
-                        onClick={() => addToCart(p)}
-                        disabled={q <= 0}
-                        className={`mt-3 rounded-xl px-4 py-2 text-white ${
-                          q > 0
-                            ? "bg-black hover:opacity-90"
-                            : "bg-gray-400 cursor-not-allowed"
+                        key={p}
+                        onClick={() => goTo(p)}
+                        className={`min-w-9 px-3 py-2 rounded-lg border text-sm hover:bg-gray-50 ${
+                          p === safePage
+                            ? "bg-black text-white border-black"
+                            : ""
                         }`}
+                        aria-current={p === safePage ? "page" : undefined}
                       >
-                        加入購物車
+                        {p}
                       </button>
+                    )
+                  )}
 
-                      <Link
-                        href={`/product/${p.id}`}
-                        className="mt-2 text-xs underline underline-offset-4 hover:opacity-80"
-                      >
-                        產品資訊
-                      </Link>
-                    </div>
-                  );
-                })}
-              </motion.div>
-            </AnimatePresence>
+                  <button
+                    onClick={() => goTo(page + 1)}
+                    disabled={page >= totalPages}
+                    className="px-3 py-2 rounded-lg border text-sm disabled:opacity-50 hover:bg-gray-50"
+                  >
+                    下一頁
+                  </button>
+                </nav>
+              )}
+            </>
           )}
         </section>
       </div>
