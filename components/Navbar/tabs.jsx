@@ -67,7 +67,7 @@ const modalCard = {
 const cartOverlay = modalFade;
 
 const cartPanel = {
-  initial: { x: 24, opacity: 0, scale: 0.98 }, // 從右邊 24px 外開始
+  initial: { x: 24, opacity: 0, scale: 0.98 },
   animate: {
     x: 0,
     opacity: 1,
@@ -171,6 +171,31 @@ const BrandMenuContent = () => (
 export const SlideTabsExample = () => {
   const router = useRouter();
 
+  // === 新增：滾動狀態 + 導覽列高度量測 ===
+  const [scrolled, setScrolled] = useState(false);
+  const headerRef = useRef(null);
+  const [headerH, setHeaderH] = useState(64); // fallback
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const measure = () => {
+      if (headerRef.current) {
+        const h = headerRef.current.getBoundingClientRect().height;
+        setHeaderH(Math.round(h));
+      }
+    };
+    measure();
+    const obs = new ResizeObserver(measure);
+    if (headerRef.current) obs.observe(headerRef.current);
+    return () => obs.disconnect();
+  }, []);
+
   // 手機選單
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isBrandOpenMobile, setIsBrandOpenMobile] = useState(false);
@@ -218,14 +243,22 @@ export const SlideTabsExample = () => {
         )}
       </AnimatePresence>
 
+      {/* ======= 導覽列：頂部透明、滾動變白 ======= */}
       <motion.nav
         key="navbar"
+        ref={headerRef}
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: easeOut }}
-        className="fixed left-0 top-0 z-[1000] bg-white sm:bg-transparent w-full"
+        className={[
+          "fixed left-0 top-0 z-[1000] w-full",
+          "transition-[background-color,backdrop-filter,box-shadow,border-color] duration-300",
+          scrolled
+            ? "bg-white/90 supports-[backdrop-filter]:bg-white backdrop-blur shadow-sm border-b border-white/10"
+            : "bg-transparent",
+        ].join(" ")}
       >
-        <div className="mx-auto w-full mt-0 sm:mt-5 py-2 sm:py-0 px-2 text-white">
+        <div className="mx-auto w-full mt-0 py-2 sm:py-3 px-2">
           <div className="flex items-center">
             {/* 左：手機 Logo 佔位 */}
             <div className="w-1/3 md:w-1/3">
@@ -273,7 +306,12 @@ export const SlideTabsExample = () => {
                 <button
                   aria-label="user"
                   onClick={() => setUserOpen((v) => !v)}
-                  className="relative grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-black/30 hover:bg-white/20 transition-colors"
+                  className={[
+                    "relative grid h-10 w-10 place-items-center rounded-full transition-colors",
+                    scrolled
+                      ? "border border-black/10 bg-black/5 hover:bg-black/10 text-black"
+                      : "border border-white/20 bg-black/30 hover:bg-white/20 text-white",
+                  ].join(" ")}
                 >
                   <User2 size={18} />
                 </button>
@@ -282,7 +320,12 @@ export const SlideTabsExample = () => {
                   {userOpen && (
                     <motion.div
                       {...fadeUp}
-                      className="absolute right-0 mt-2 w-60 rounded-xl border border-white/15 bg-black/80 text-white shadow-xl backdrop-blur-md"
+                      className={[
+                        "absolute right-0 mt-2 w-60 rounded-xl shadow-xl backdrop-blur-md",
+                        scrolled
+                          ? "border border-black/10 bg-white/95 text-black"
+                          : "border border-white/15 bg-black/80 text-white",
+                      ].join(" ")}
                     >
                       {!auth.user ? (
                         <div className="p-2">
@@ -342,7 +385,12 @@ export const SlideTabsExample = () => {
               <button
                 aria-label="cart"
                 onClick={() => setCartOpen((v) => !v)}
-                className="relative grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-black/30 hover:bg-white/20 transition-colors"
+                className={[
+                  "relative grid h-10 w-10 place-items-center rounded-full transition-colors",
+                  scrolled
+                    ? "border border-black/10 bg-black/5 hover:bg-black/10 text-black"
+                    : "border border-white/20 bg-black/30 hover:bg-white/20 text-white",
+                ].join(" ")}
               >
                 <ShoppingCart size={18} />
                 {cartCount > 0 && (
@@ -350,6 +398,20 @@ export const SlideTabsExample = () => {
                     {cartCount}
                   </span>
                 )}
+              </button>
+
+              {/* 手機漢堡（如果需要） */}
+              <button
+                aria-label="menu"
+                onClick={() => setIsMenuOpen((v) => !v)}
+                className={[
+                  "ml-1 grid h-10 w-10 place-items-center rounded-full transition-colors md:hidden",
+                  scrolled
+                    ? "border border-black/10 bg-black/5 hover:bg-black/10 text-black"
+                    : "border border-white/20 bg-black/30 hover:bg-white/20 text-white",
+                ].join(" ")}
+              >
+                {isMenuOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
             </div>
           </div>
@@ -465,7 +527,7 @@ export const SlideTabsExample = () => {
 
                                 <div className="flex flex-col items-end gap-2">
                                   <div className="text-sm font-semibold">
-                                    CA${" "}
+                                    CA{"$ "}
                                     {(
                                       Number(it.price || 0) * (it.qty || 0)
                                     ).toLocaleString()}
@@ -541,7 +603,6 @@ export const SlideTabsExample = () => {
       </motion.nav>
 
       {/* 手機：漢堡選單內容（白底 + 更順滑動畫） */}
-      {/* 手機：漢堡選單內容（白底 + 更順滑動畫） */}
       <AnimatePresence>
         {isMenuOpen && (
           <>
@@ -554,7 +615,7 @@ export const SlideTabsExample = () => {
               onClick={() => setIsMenuOpen(false)}
             />
 
-            {/* 下拉白底選單 */}
+            {/* 下拉白底選單（動態貼齊導覽列高度） */}
             <motion.div
               initial={{ y: -12, opacity: 0 }}
               animate={{
@@ -563,7 +624,8 @@ export const SlideTabsExample = () => {
                 transition: { type: "spring", stiffness: 420, damping: 32 },
               }}
               exit={{ y: -12, opacity: 0, transition: { duration: 0.18 } }}
-              className="fixed left-0 right-0 top-[64px] z-[950] overflow-hidden 
+              style={{ top: headerH }}
+              className="fixed left-0 right-0 z-[950] overflow-hidden 
                    bg-white text-gray-800 shadow-xl border border-gray-200/70"
             >
               <div className="flex flex-col gap-2 py-4 px-4">

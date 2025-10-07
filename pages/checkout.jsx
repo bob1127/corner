@@ -278,40 +278,6 @@ export default function CheckoutPage() {
                   Payment details will be provided by customer service
                 </span>
               </p>
-
-              <div className="grid sm:grid-cols-2 gap-3">
-                {[
-                  { zh: "貨到付款", en: "Cash on Delivery" },
-                  { zh: "信用卡", en: "Credit Card" },
-                  { zh: "銀行轉帳", en: "Bank Transfer" },
-                  { zh: "LINE Pay", en: "LINE Pay" },
-                ].map((opt) => (
-                  <label
-                    key={opt.zh}
-                    className={`flex items-start gap-3 border rounded-lg p-3 cursor-pointer hover:bg-gray-50 transition ${
-                      form.payment === opt.zh
-                        ? "border-black"
-                        : "border-gray-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment"
-                      checked={form.payment === opt.zh}
-                      onChange={() =>
-                        setForm((v) => ({ ...v, payment: opt.zh }))
-                      }
-                      className="mt-[2px]"
-                    />
-                    <span>
-                      {opt.zh}
-                      <span className="block text-[12px] text-gray-500">
-                        {opt.en}
-                      </span>
-                    </span>
-                  </label>
-                ))}
-              </div>
             </section>
           </div>
 

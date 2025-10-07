@@ -172,13 +172,12 @@ export default function Home() {
         </div>
 
         {/* Banner */}
-        <section>
+        <section className="relative h-screen overflow-hidden">
           <Image
             src="/images/2025-10-灶腳-IG-灶腳宅配(1920x1080px)-定稿.jpg"
             alt="banner"
-            width={1920}
-            height={1080}
-            className="w-full"
+            fill
+            className="w-full object-cover"
             priority
           />
         </section>
