@@ -19,7 +19,7 @@ export default function HotProductsCarousel({
   const [fetched, setFetched] = useState([]);
   const [err, setErr] = useState("");
 
-  // ── Embla：順滑設定（保留慣性，但仍會貼齊）
+  // ── Embla: smooth feel (has inertia but still snaps)
   const autoplay = useRef(
     Autoplay({ delay: 3000, stopOnInteraction: false, stopOnMouseEnter: true })
   );
@@ -37,7 +37,7 @@ export default function HotProductsCarousel({
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
-  // 抓資料
+  // Fetch data
   useEffect(() => {
     if (presetItems?.length) return;
     let aborted = false;
@@ -54,7 +54,7 @@ export default function HotProductsCarousel({
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const json = await r.json();
         const arr = Array.isArray(json) ? json : json?.data || [];
-        if (!Array.isArray(arr)) throw new Error("API 格式錯誤");
+        if (!Array.isArray(arr)) throw new Error("Invalid API response");
 
         let list = excludeId ? arr.filter((x) => x.id !== excludeId) : arr;
 
@@ -78,8 +78,8 @@ export default function HotProductsCarousel({
           name: x.name,
           price: x?.prices?.price ? Number(x.prices.price) / 100 : undefined,
           img: x?.images?.[0]?.src || "/images/placeholder.png",
-          leftNote: "季節限定",
-          rightNote: "クラフトラガー",
+          leftNote: "SEASONAL",
+          rightNote: "CRAFT LAGER",
         }));
 
         if (!mapped.length && fallbackItem) mapped = [fallbackItem];
@@ -109,31 +109,31 @@ export default function HotProductsCarousel({
     return [];
   }, [presetItems, fetched, fallbackItem]);
 
-  if (err) return <div className="text-red-600">載入失敗：{err}</div>;
+  if (err) return <div className="text-red-600">Load failed: {err}</div>;
   if (!loading && !data.length)
-    return <div className="text-gray-500">暫無其他商品</div>;
+    return <div className="text-gray-500">No other products for now</div>;
 
   return (
     <div className="relative w-full">
-      {/* 左右箭頭（手機也顯示；置中不裁切） */}
+      {/* Arrows (visible on mobile too) */}
       <button
         onClick={scrollPrev}
-        aria-label="上一個"
+        aria-label="Previous"
         className="absolute z-10 left-1 top-1/2 -translate-y-1/2 grid place-items-center size-9 rounded-full bg-white/95 text-black/80 shadow ring-1 ring-black/10 hover:bg-black hover:text-white transition"
       >
         ‹
       </button>
       <button
         onClick={scrollNext}
-        aria-label="下一個"
+        aria-label="Next"
         className="absolute z-10 right-1 top-1/2 -translate-y-1/2 grid place-items-center size-9 rounded-full bg-white/95 text-black/80 shadow ring-1 ring-black/10 hover:bg-black hover:text-white transition"
       >
         ›
       </button>
 
-      {/* Embla 視窗：加 px-4 以免卡片被左右裁切 */}
+      {/* Embla viewport */}
       <div className="overflow-hidden px-4" ref={emblaRef}>
-        {/* 用 -ml-4 + 子項 pr-4 來製造間距（不影響寬度計算） */}
+        {/* Use -ml-4 + child pr-4 for spacing without breaking width calc */}
         <div className="embla__container -ml-4 select-none touch-pan-y">
           {(loading ? Array.from({ length: Math.min(4, perPage) }) : data).map(
             (p, idx) => (
@@ -152,12 +152,12 @@ export default function HotProductsCarousel({
 
                       <div className="absolute inset-y-0 left-0 flex items-center pl-1 sm:pl-2 pointer-events-none">
                         <span className="[writing-mode:vertical-rl] text-[10px] sm:text-[11px] tracking-widest text-stone-400 select-none">
-                          {p.leftNote ?? "季節限定"}
+                          {p.leftNote ?? "SEASONAL"}
                         </span>
                       </div>
                       <div className="absolute inset-y-0 right-0 flex items-center pr-1 sm:pr-2 pointer-events-none">
                         <span className="[writing-mode:vertical-rl] text-[10px] sm:text-[11px] tracking-widest text-stone-400 select-none">
-                          {p.rightNote ?? "クラフトラガー"}
+                          {p.rightNote ?? "CRAFT LAGER"}
                         </span>
                       </div>
 
@@ -171,7 +171,7 @@ export default function HotProductsCarousel({
 
                       <button
                         onClick={() => onAdd?.(p)}
-                        aria-label="加入購物車"
+                        aria-label="Add to cart"
                         className="absolute bottom-[18%] right-[12%] size-9 sm:size-10 rounded-full bg-white text-black shadow ring-1 ring-black/10 grid place-items-center hover:bg-black hover:text-white transition"
                       >
                         +
@@ -194,13 +194,13 @@ export default function HotProductsCarousel({
                           href={`/product/${p.id}`}
                           className="flex-1 rounded-full border py-2 text-xs text-center hover:bg-black hover:text-white transition"
                         >
-                          查看
+                          View
                         </a>
                         <button
                           onClick={() => onAdd?.(p)}
                           className="flex-1 rounded-full bg-black text-white py-2 text-xs hover:opacity-90 transition"
                         >
-                          加入購物車
+                          Add to Cart
                         </button>
                       </div>
                     </div>
@@ -212,31 +212,31 @@ export default function HotProductsCarousel({
         </div>
       </div>
 
-      {/* 斷點寬度（!important 覆蓋一切，保證不擠 & 手機一張） */}
+      {/* Breakpoints: guarantee 1/2/3/4 slides per row */}
       <style jsx>{`
         .embla__container {
           display: flex;
         }
-        /* 手機：單張滿版（不裁邊） */
+        /* Mobile: 1 card per view */
         .embla__slide {
           flex: 0 0 100% !important;
           min-width: 100% !important;
         }
-        /* sm ≥640px：兩張 */
+        /* sm ≥640px: 2 cards */
         @media (min-width: 640px) {
           .embla__slide {
             flex: 0 0 50% !important;
             min-width: 50% !important;
           }
         }
-        /* md ≥768px：三張 */
+        /* md ≥768px: 3 cards */
         @media (min-width: 768px) {
           .embla__slide {
             flex: 0 0 33.3333% !important;
             min-width: 33.3333% !important;
           }
         }
-        /* lg ≥1024px：四張 */
+        /* lg ≥1024px: 4 cards */
         @media (min-width: 1024px) {
           .embla__slide {
             flex: 0 0 25% !important;

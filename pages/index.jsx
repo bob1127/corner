@@ -1,26 +1,15 @@
+// pages/index.jsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import Layout from "./Layout";
 import { motion, AnimatePresence } from "framer-motion";
 import { cartStore } from "@/lib/cartStore";
+import Layout from "./Layout";
+import { useT } from "@/lib/i18n";
 
-/* ---- WooCommerce 分類 (依照你後台設定 slug) ---- */
-const CATEGORIES = [
-  { name: "全部 All", slug: "" }, // ✅ 新增「全部」
-  { name: "小吃 Snacks", slug: "snacks" },
-  { name: "湯品 Soups", slug: "soups" },
-  { name: "湯麵 Noodle Soups", slug: "noodle-soups" },
-  { name: "火鍋 Hot Pot", slug: "hot-pot" },
-  { name: "炒飯 Fried Rice", slug: "fried-rice" },
-  { name: "甜品 Desserts", slug: "desserts" },
-  { name: "飲品 Beverages", slug: "beverages" },
-  { name: "馬上即享 Ready to Enjoy", slug: "ready-to-enjoy" },
-];
-
-/* ---- 讀取保存方式標籤 ---- */
+/* ---- Read storage method tags from product attributes ---- */
 const storageTagsFromProduct = (p) => {
   if (!p || !Array.isArray(p.attributes)) return [];
   const attr = p.attributes.find((a) => {
@@ -28,7 +17,7 @@ const storageTagsFromProduct = (p) => {
     const tax = String(a?.taxonomy || "").toLowerCase();
     const name = String(a?.name || "").toLowerCase();
     return (
-      name.includes("保存方式") ||
+      name.includes("保存方式") || // keep CN in case backend uses Chinese
       slug === "storage" ||
       slug === "pa_storage" ||
       tax === "pa_storage"
@@ -44,10 +33,10 @@ const storageTagsFromProduct = (p) => {
   return [];
 };
 
-/* ---- 分頁參數 ---- */
+/* ---- Pagination constants ---- */
 const PAGE_SIZE = 15;
 
-/* 產生精簡頁碼（含省略號） */
+/* Generate compact pagination (with ellipsis) */
 function getVisiblePages(current, total) {
   const pages = [];
   if (total <= 7) {
@@ -61,24 +50,42 @@ function getVisiblePages(current, total) {
 }
 
 export default function Home() {
+  const t = useT();
+
+  // Build localized categories with useMemo so it updates when locale changes
+  const CATEGORIES = useMemo(
+    () => [
+      { name: t("home.cat.all"), slug: "" },
+      { name: t("home.cat.snacks"), slug: "snacks" },
+      { name: t("home.cat.soups"), slug: "soups" },
+      { name: t("home.cat.noodleSoups"), slug: "noodle-soups" },
+      { name: t("home.cat.hotPot"), slug: "hot-pot" },
+      { name: t("home.cat.friedRice"), slug: "fried-rice" },
+      { name: t("home.cat.desserts"), slug: "desserts" },
+      { name: t("home.cat.beverages"), slug: "beverages" },
+      { name: t("home.cat.ready"), slug: "ready-to-enjoy" },
+    ],
+    [t]
+  );
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [qtyMap, setQtyMap] = useState({});
   const [toast, setToast] = useState(null);
 
-  // 當前選中的分類（預設顯示全部）
-  const [activeCat, setActiveCat] = useState(CATEGORIES[0].slug);
+  // current category (default shows all)
+  const [activeCat, setActiveCat] = useState("");
 
-  // 分頁
+  // pagination
   const [page, setPage] = useState(1);
   const gridTopRef = useRef(null);
 
-  // 切換分類時回到第一頁
+  // reset to first page when category changes
   useEffect(() => {
     setPage(1);
   }, [activeCat]);
 
-  // 捲回商品區頂部
+  // scroll to product grid top
   const scrollToGridTop = () => {
     gridTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -87,7 +94,7 @@ export default function Home() {
     (async () => {
       try {
         setLoading(true);
-        // 抓多一點，前端做分頁（若你要後端分頁，可改 API 支援 page）
+        // fetch more and paginate on client (or change API to support server pagination)
         const url = `/api/store/products?per_page=100${
           activeCat ? `&category=${activeCat}` : ""
         }`;
@@ -132,11 +139,12 @@ export default function Home() {
       { id: p.id, name: p.name, img, price: priceNumber, sku: p.sku || "" },
       q
     );
-    showToast(`「${p.name}」已加入購物車（${q} 件）`);
+    // Localized toast
+    showToast(`${t("pd.toast.added")} “${p.name}” (${q}).`);
     setQty(p.id, 0);
   };
 
-  // 分頁切片
+  // pagination slice
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   const safePage = Math.min(Math.max(1, page), totalPages);
   const pageStart = (safePage - 1) * PAGE_SIZE;
@@ -152,7 +160,7 @@ export default function Home() {
 
   return (
     <Layout>
-      <div className="bg-[#f4f1f1] pt-20 sm:pt-0">
+      <main className="bg-[#f4f1f1] pt-20 sm:pt-0">
         {/* Toast */}
         <div className="pointer-events-none fixed inset-0 z-[200] flex items-end justify-center">
           <AnimatePresence mode="wait">
@@ -182,9 +190,9 @@ export default function Home() {
           />
         </section>
 
-        {/* Tabs 區塊（桌機：按鈕列、手機：下拉選單） */}
+        {/* Tabs (desktop buttons, mobile select) */}
         <div className="mt-8 flex flex-col items-center gap-4">
-          {/* 🔹 手機版 Dropdown */}
+          {/* 🔹 Mobile Dropdown */}
           <div className="block sm:hidden w-[80%] max-w-[300px]">
             <select
               value={activeCat}
@@ -199,7 +207,7 @@ export default function Home() {
             </select>
           </div>
 
-          {/* 🔹 桌機版 Tabs */}
+          {/* 🔹 Desktop Tabs */}
           <div className="hidden sm:flex justify-center gap-3 flex-wrap">
             {CATEGORIES.map((c) => (
               <button
@@ -217,22 +225,24 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 商品區 */}
+        {/* Products */}
         <section className="section-content min-h-screen pb-24">
-          {/* 捲動定位點 */}
+          {/* scroll anchor */}
           <div ref={gridTopRef} />
 
           {loading ? (
-            <div className="text-center py-20 text-gray-500">載入商品中…</div>
+            <div className="text-center py-20 text-gray-500">
+              {t("home.loading")}
+            </div>
           ) : items.length === 0 ? (
             <div className="text-center py-20 text-gray-500">
-              沒有符合的產品
+              {t("home.noMatch")}
             </div>
           ) : (
             <>
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={`${activeCat}-${safePage}`} // 切分類/頁面都重播動畫
+                  key={`${activeCat}-${safePage}`}
                   initial={{ opacity: 0, y: 50 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -50 }}
@@ -250,12 +260,12 @@ export default function Home() {
                     return (
                       <div
                         key={p.id}
-                        className="item flex flex-col justify-center items-center group bg-white p-4   border border-gray-100 hover:shadow-md transition"
+                        className="item flex flex-col justify-center items-center group bg-white p-4 border border-gray-100 hover:shadow-md transition"
                       >
-                        {/* 商品圖 */}
+                        {/* Image */}
                         <Link
                           href={`/product/${p.id}`}
-                          aria-label={`${p.name} 內頁`}
+                          aria-label={`${p.name} details`}
                         >
                           <img
                             src={img}
@@ -265,7 +275,7 @@ export default function Home() {
                           />
                         </Link>
 
-                        {/* 標題與價格 */}
+                        {/* Title & Price */}
                         <div className="item-info mt-3 text-center">
                           <b className="line-clamp-2">{p.name}</b>
                           {price !== null && (
@@ -275,12 +285,12 @@ export default function Home() {
                           )}
                         </div>
 
-                        {/* 保存方式標籤 */}
+                        {/* Storage tags */}
                         {tags.length > 0 && (
                           <div className="mt-2 flex flex-wrap justify-center gap-2">
-                            {tags.map((t, i) => {
-                              const isCold = /冷藏/.test(t);
-                              const isFrozen = /冷凍/.test(t);
+                            {tags.map((tLabel, i) => {
+                              const isCold = /冷藏/.test(tLabel);
+                              const isFrozen = /冷凍/.test(tLabel);
                               const base =
                                 "inline-block px-3 py-1 rounded text-xs";
                               const cls = isFrozen
@@ -290,14 +300,14 @@ export default function Home() {
                                 : "bg-gray-100 text-gray-800";
                               return (
                                 <span key={i} className={`${base} ${cls}`}>
-                                  {t}
+                                  {tLabel}
                                 </span>
                               );
                             })}
                           </div>
                         )}
 
-                        {/* 數量控制 */}
+                        {/* Quantity */}
                         <div className="mt-4 flex items-center gap-3">
                           <button
                             onClick={() => setQty(p.id, q - 1)}
@@ -326,7 +336,7 @@ export default function Home() {
                           </button>
                         </div>
 
-                        {/* 加入購物車 */}
+                        {/* Add to cart */}
                         <button
                           onClick={() => addToCart(p)}
                           disabled={q <= 0}
@@ -336,14 +346,14 @@ export default function Home() {
                               : "bg-gray-400 cursor-not-allowed"
                           }`}
                         >
-                          加入購物車
+                          {t("prod.addToCart")}
                         </button>
 
                         <Link
                           href={`/product/${p.id}`}
                           className="mt-2 text-xs underline underline-offset-4 hover:opacity-80"
                         >
-                          產品資訊
+                          {t("home.details")}
                         </Link>
                       </div>
                     );
@@ -351,7 +361,7 @@ export default function Home() {
                 </motion.div>
               </AnimatePresence>
 
-              {/* 分頁列 */}
+              {/* Pagination */}
               {totalPages > 1 && (
                 <nav
                   aria-label="Products pagination"
@@ -362,26 +372,26 @@ export default function Home() {
                     disabled={page <= 1}
                     className="px-3 py-2 rounded-lg border text-sm disabled:opacity-50 hover:bg-gray-50"
                   >
-                    上一頁
+                    {t("home.prev")}
                   </button>
 
-                  {getVisiblePages(safePage, totalPages).map((p, i) =>
-                    p === "…" ? (
+                  {getVisiblePages(safePage, totalPages).map((pNum, i) =>
+                    pNum === "…" ? (
                       <span key={`e-${i}`} className="px-2 text-gray-500">
                         …
                       </span>
                     ) : (
                       <button
-                        key={p}
-                        onClick={() => goTo(p)}
+                        key={pNum}
+                        onClick={() => goTo(pNum)}
                         className={`min-w-9 px-3 py-2 rounded-lg border text-sm hover:bg-gray-50 ${
-                          p === safePage
+                          pNum === safePage
                             ? "bg-black text-white border-black"
                             : ""
                         }`}
-                        aria-current={p === safePage ? "page" : undefined}
+                        aria-current={pNum === safePage ? "page" : undefined}
                       >
-                        {p}
+                        {pNum}
                       </button>
                     )
                   )}
@@ -391,14 +401,14 @@ export default function Home() {
                     disabled={page >= totalPages}
                     className="px-3 py-2 rounded-lg border text-sm disabled:opacity-50 hover:bg-gray-50"
                   >
-                    下一頁
+                    {t("home.next")}
                   </button>
                 </nav>
               )}
             </>
           )}
         </section>
-      </div>
+      </main>
     </Layout>
   );
 }

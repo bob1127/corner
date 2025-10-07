@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Layout from "../Layout";
 import { cartStore } from "@/lib/cartStore";
 
@@ -15,6 +15,7 @@ import "swiper/css/thumbs";
 import Image from "next/image";
 import HotProductsCarousel from "@/components/HotProductsCarousel";
 import { AnimatePresence, motion } from "framer-motion";
+import { useT } from "@/lib/i18n";
 
 /* ---------- helpers ---------- */
 const priceFromStore = (p) =>
@@ -50,17 +51,31 @@ const storageTagsFromProduct = (p) => {
 
 export default function ProductDetail() {
   const router = useRouter();
+  const t = useT();
   const { id } = router.query;
 
   const [p, setP] = useState(null);
   const [qty, setQty] = useState(1);
   const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(true);
   const [thumbsSwiper, setThumbsSwiper] = useState(null);
 
-  // === 自訂彈出匡狀態 ===
+  // 加入購物車 Toast 狀態
   const [added, setAdded] = useState(null); // { id, name, img, price, qty }
 
-  // 加入購物車 + 彈出匡
+  // ====== 安全傳遞 thumbs（避免 destroyed 狀態觸發錯誤）======
+  const thumbsParam = useMemo(() => {
+    return thumbsSwiper && !thumbsSwiper.destroyed
+      ? { swiper: thumbsSwiper }
+      : undefined;
+  }, [thumbsSwiper]);
+
+  // 語系或商品變動時，清空舊的 thumbs 實例參考
+  useEffect(() => {
+    setThumbsSwiper(null);
+  }, [router.locale, id]);
+
+  // 加入購物車 + 顯示自訂彈窗
   const showAddedToast = useCallback((prod, count = 1) => {
     const payload = {
       id: prod.id,
@@ -81,30 +96,60 @@ export default function ProductDetail() {
     setAdded(payload);
   }, []);
 
-  // 自動關閉
+  // 自動關閉彈窗
   useEffect(() => {
     if (!added) return;
-    const t = setTimeout(() => setAdded(null), 3000);
-    return () => clearTimeout(t);
+    const tmr = setTimeout(() => setAdded(null), 3000);
+    return () => clearTimeout(tmr);
   }, [added]);
 
-  // 抓商品
+  // 取單品（等待 router.isReady；容錯兩種 API 寫法；容忍不同 payload 形狀）
   useEffect(() => {
-    if (!id) return;
+    if (!router.isReady) return;
+    let aborted = false;
+
     (async () => {
       try {
-        const r = await fetch(`/api/store/products/${id}`);
-        const data = await r.json();
-        if (!r.ok || !data?.id) {
-          setErr(`讀取失敗 ${r.status}: ${data?.message || "unknown"}`);
+        setLoading(true);
+        setErr("");
+
+        const pid = router.query.id;
+        const headers = { "Accept-Language": router.locale || "en" };
+
+        // 1) /api/store/products/:id
+        let res = await fetch(`/api/store/products/${pid}`, { headers });
+        let data;
+        if (res.ok) {
+          data = await res.json();
         } else {
-          setP(data);
+          // 2) /api/store/products?id=:id
+          const res2 = await fetch(`/api/store/products?id=${pid}`, {
+            headers,
+          });
+          if (!res2.ok) throw new Error(`HTTP ${res.status}`);
+          data = await res2.json();
         }
+
+        const prod = Array.isArray(data)
+          ? data[0]
+          : data?.data && !data?.id
+          ? data.data
+          : data;
+
+        if (!prod?.id) throw new Error("Invalid product payload");
+
+        if (!aborted) setP(prod);
       } catch (e) {
-        setErr(String(e));
+        if (!aborted) setErr(String(e?.message || e));
+      } finally {
+        if (!aborted) setLoading(false);
       }
     })();
-  }, [id]);
+
+    return () => {
+      aborted = true;
+    };
+  }, [router.isReady, router.query.id, router.locale]);
 
   if (err) {
     return (
@@ -113,11 +158,11 @@ export default function ProductDetail() {
       </Layout>
     );
   }
-  if (!p) {
+  if (loading || !p) {
     return (
       <Layout>
         <div className="max-w-6xl mx-auto py-16 px-4 text-gray-500">
-          載入中…
+          {t("pd.loading", "Loading…")}
         </div>
       </Layout>
     );
@@ -128,7 +173,6 @@ export default function ProductDetail() {
   const storageTags = storageTagsFromProduct(p);
 
   const add = () => {
-    // 使用自訂彈出匡
     showAddedToast({ id: p.id, name: p.name, img: imgs?.[0]?.src, price }, qty);
   };
 
@@ -146,12 +190,15 @@ export default function ProductDetail() {
       <main className="max-w-6xl mx-auto pb-24 pt-[140px] px-4 sm:px-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* 左：主圖 + 縮圖 */}
-          <div className="w-full flex flex-col items-center gap-4">
+          <div
+            className="w-full flex flex-col items-center gap-4"
+            key={`${router.locale}-${p.id}`}
+          >
             <div className="w-full max-w-[520px] aspect-[4/4] relative">
               <Swiper
                 loop
                 navigation
-                thumbs={{ swiper: thumbsSwiper }}
+                thumbs={thumbsParam}
                 modules={[FreeMode, Navigation, Thumbs]}
                 className="product-swiper w-full h-full"
                 style={{ height: "100%" }}
@@ -161,7 +208,7 @@ export default function ProductDetail() {
                     <div className="relative w-full h-full min-h-[320px] rounded overflow-hidden bg-white">
                       <Image
                         src={image.src}
-                        alt={image.alt || `Product Image ${i}`}
+                        alt={image.alt || `Product Image ${i + 1}`}
                         fill
                         className="object-contain"
                         sizes="(max-width:768px) 100vw, 520px"
@@ -191,7 +238,7 @@ export default function ProductDetail() {
                     <div className="relative w-full aspect-square rounded overflow-hidden cursor-pointer hover:opacity-80 bg-white">
                       <Image
                         src={image.src}
-                        alt={image.alt || `Thumbnail ${i}`}
+                        alt={image.alt || `Thumbnail ${i + 1}`}
                         fill
                         className="object-contain"
                         sizes="80px"
@@ -258,7 +305,7 @@ export default function ProductDetail() {
                 onClick={add}
                 className="px-6 py-3 bg-black text-white rounded hover:opacity-90 transition"
               >
-                加入購物車
+                {t("pd.addToCart", "Add to Cart")}
               </button>
             </div>
           </div>
@@ -267,7 +314,9 @@ export default function ProductDetail() {
         {/* 詳細介紹 */}
         {p.description && (
           <div className="mt-12">
-            <h2 className="text-xl font-bold mb-2">商品介紹</h2>
+            <h2 className="text-xl font-bold mb-2">
+              {t("pd.desc", "Description")}
+            </h2>
             <div
               className="prose prose-sm text-gray-800"
               dangerouslySetInnerHTML={{ __html: p.description }}
@@ -275,31 +324,36 @@ export default function ProductDetail() {
           </div>
         )}
 
-        {/* 推薦產品（與主按鈕共用同一個彈出匡） */}
+        {/* 推薦產品 */}
         <section className="mt-16">
-          <h3 className="text-xl font-bold mb-4">其他推薦產品</h3>
+          <h3 className="text-xl font-bold mb-4">
+            {t("pd.other", "You may also like")}
+          </h3>
           <RelatedCarousel
             currentId={p.id}
             categories={p.categories}
-            currentFirstImage={imgs?.[0]?.src || "/images/placeholder.png"}
+            currentFirstImage={
+              imagesFromProduct(p)?.[0]?.src || "/images/placeholder.png"
+            }
             currentPrice={price}
             onQuickAdd={(prod) => showAddedToast(prod, 1)}
           />
         </section>
       </main>
 
-      {/* ====== 新設計：加入購物車彈出匡 ====== */}
+      {/* 加入購物車彈出匡 */}
       <AddToCartToast
         open={!!added}
         onClose={() => setAdded(null)}
         item={added}
-        onGoCart={() => router.push("/cart")}
+        onGoCart={() => router.push("/checkout")}
+        t={t}
       />
     </Layout>
   );
 }
 
-/* 推薦區：把 onQuickAdd 往下傳進 HotProductsCarousel 的 onAdd */
+/* 推薦區 */
 function RelatedCarousel({
   currentId,
   categories,
@@ -307,6 +361,7 @@ function RelatedCarousel({
   currentPrice,
   onQuickAdd,
 }) {
+  const t = useT();
   return (
     <HotProductsCarousel
       fetchFromWoo
@@ -315,7 +370,7 @@ function RelatedCarousel({
       categoryIds={(categories || []).map((c) => c.id)}
       fallbackItem={{
         id: currentId,
-        name: "本商品",
+        name: t("pd.thisProduct", "This Product"),
         img: currentFirstImage,
         price: currentPrice,
       }}
@@ -326,7 +381,6 @@ function RelatedCarousel({
           img: prod.img,
           price: prod.price,
         };
-        // 寫入購物車 + 彈窗
         cartStore.add(payload, 1);
         onQuickAdd?.(payload);
       }}
@@ -334,11 +388,10 @@ function RelatedCarousel({
   );
 }
 
-/* ========== 元件：加入購物車彈出匡（Bottom Toast） ========== */
-function AddToCartToast({ open, onClose, item, onGoCart }) {
+/* 加入購物車 Toast */
+function AddToCartToast({ open, onClose, item, onGoCart, t }) {
   const visible = !!open && !!item;
 
-  // 防止背景滾動（Toast 開啟時）
   useEffect(() => {
     if (!visible) return;
     const original = document.body.style.overflow;
@@ -352,17 +405,14 @@ function AddToCartToast({ open, onClose, item, onGoCart }) {
     <AnimatePresence>
       {visible && (
         <>
-          {/* 半透明遮罩（可點關閉） */}
           <motion.button
-            aria-label="關閉彈出視窗"
+            aria-label={t("pd.toast.close", "Close")}
             className="fixed inset-0 bg-black/30 z-40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
-
-          {/* Bottom sheet / Toast */}
           <motion.div
             className="fixed z-50 left-1/2 -translate-x-1/2 bottom-4 w-[92vw] sm:w-[560px]"
             initial={{ y: 80, opacity: 0 }}
@@ -385,17 +435,17 @@ function AddToCartToast({ open, onClose, item, onGoCart }) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold truncate">
-                    已加入購物車：{item?.name}
+                    {t("pd.toast.added", "Added to cart:")} {item?.name}
                   </p>
                   <p className="text-xs text-stone-600 mt-0.5">
-                    數量 × {item?.qty}　|　CA${item?.price}
+                    {t("pd.toast.qty", "Qty")} × {item?.qty} | CA${item?.price}
                   </p>
                 </div>
                 <button
                   onClick={onClose}
                   className="px-3 py-2 text-sm rounded-lg hover:bg-stone-100"
                 >
-                  關閉
+                  {t("pd.toast.close", "Close")}
                 </button>
               </div>
             </div>

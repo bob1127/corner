@@ -4,23 +4,21 @@ const path = require("path");
 /** @type {import('next').NextConfig} */
 module.exports = {
   images: {
-    // 只允許實際用到的遠端圖源；"**" 會失敗，需明確主機
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "inf.fjg.mybluehost.me",
-        pathname: "/**", // 你的 WP 子目錄與 uploads 會被包含
-      },
-      {
-        protocol: "https",
-        hostname: "i0.wp.com", // Jetpack/WordPress.com 圖片 CDN
-        pathname: "/**",
-      },
+      { protocol: "https", hostname: "inf.fjg.mybluehost.me", pathname: "/**" },
+      { protocol: "https", hostname: "i0.wp.com", pathname: "/**" },
     ],
-    formats: ["image/avif", "image/webp"], // 可選：更省流量
+    formats: ["image/avif", "image/webp"],
   },
 
   trailingSlash: true,
+
+  // ✅ 開啟 i18n，預設英文；網址會是 /en 與 /cn
+  i18n: {
+    locales: ["en", "cn"],
+    defaultLocale: "en",
+    localeDetection: false, // 我們自己控制（避免自動跳轉）
+  },
 
   webpackDevMiddleware: (config) => {
     config.watchOptions = { poll: 1000, aggregateTimeout: 300 };
