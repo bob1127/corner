@@ -56,7 +56,7 @@ export default function CheckoutPage() {
     address: "",
     wechat: "",
     contactOther: "",
-    payment: "", // ✅ 前端仍保留，但不做驗證
+    payment: "", // 前端保留，但不做驗證
     deliveryArea: "",
     deliveryAddress: "",
   });
@@ -97,9 +97,7 @@ export default function CheckoutPage() {
       return alert(
         t("co.alert.fillBasic", "Please enter name, phone, and email")
       );
-    // ❌ 已移除：付款方式驗證
-    // if (!form.payment)
-    //   return alert(t("co.alert.choosePay", "Please select a payment method"));
+    // （已移除付款方式驗證）
     if (!form.deliveryArea)
       return alert(t("co.alert.chooseArea", "Please select a delivery area"));
     if (!form.deliveryAddress.trim())
@@ -120,7 +118,7 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cart,
-          form: { ...form, address: fullAddress }, // payment 仍會一起帶上（就算是空字串）
+          form: { ...form, address: fullAddress }, // payment 會帶上（即便為空字串）
           shipping_fee: shippingFee,
           tax: taxAmount,
         }),
@@ -271,7 +269,7 @@ export default function CheckoutPage() {
               )}
             </section>
 
-            {/* ✅ Payment Method（僅顯示說明，不做驗證） */}
+            {/* Payment Method + Delivery dates note */}
             <section>
               <h3 className="font-semibold text-lg mb-1">
                 {t("co.paymentMethod", "Payment Method")}
@@ -282,6 +280,14 @@ export default function CheckoutPage() {
                   "Payment details will be provided by customer service."
                 )}
               </p>
+
+              {/* ✅ 新增的動態提示（中英切換） */}
+              <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2 text-sm">
+                {t(
+                  "co.deliveryDates",
+                  "Delivery dates: expected 10/16–10/17; customer service will contact you to confirm the exact date."
+                )}
+              </div>
             </section>
           </div>
 

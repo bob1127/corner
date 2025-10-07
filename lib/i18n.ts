@@ -96,7 +96,7 @@ const en: Dict = {
   "co.area.vancouver":
     "Vancouver City (Includes West Side, East Van, UBC) — Excludes Downtown & North Van",
   "co.area.burnaby": "Burnaby",
-  "co.area.surrey": "White Rock / South Surrey / North Surrey",
+  "co.area.surrey": "South Surrey / White Rock / North Surrey / North Delta",
   // ==== Home (categories, UI) ====
   "home.cat.all": "All",
 
@@ -192,9 +192,9 @@ const cn: Dict = {
 
   // Checkout areas
   "co.area.vancouver":
-    "溫哥華市（含西區、東區、UBC）— 不含 Downtown、North Van",
-  "co.area.burnaby": "本拿比（Burnaby）",
-  "co.area.surrey": "White Rock / 南素里 / 北素里",
+    "Vancouver City (Includes West Side, East Van, UBC) — Excludes Downtown & North Van",
+  "co.area.burnaby": "Burnaby",
+  "co.area.surrey": "South Surrey / White Rock / North Surrey / North Delta",
   "home.cat.all": "全部",
   // ==== Home (categories, UI) ====
 "home.cat.snacks": "小吃",
