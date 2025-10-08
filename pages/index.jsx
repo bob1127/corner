@@ -2,12 +2,14 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
+import Head from "next/head";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { cartStore } from "@/lib/cartStore";
 import Layout from "./Layout";
 import { useT } from "@/lib/i18n";
+import { useRouter } from "next/router";
 
 /* ---- Read storage method tags from product attributes ---- */
 const storageTagsFromProduct = (p) => {
@@ -17,7 +19,7 @@ const storageTagsFromProduct = (p) => {
     const tax = String(a?.taxonomy || "").toLowerCase();
     const name = String(a?.name || "").toLowerCase();
     return (
-      name.includes("保存方式") || // keep CN in case backend uses Chinese
+      name.includes("保存方式") ||
       slug === "storage" ||
       slug === "pa_storage" ||
       tax === "pa_storage"
@@ -49,8 +51,34 @@ function getVisiblePages(current, total) {
   return [1, "…", current - 1, current, current + 1, "…", total];
 }
 
-export default function Home() {
+/** 從擴充欄位/中英欄位挑選中文名 */
+const pickZhName = (p) =>
+  p?.extensions?.custom_acf?.zh_product_name || p?.cn_name || "";
+
+/** 站台絕對網址（給 canonical/hreflang 用） */
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "";
+
+export default function Home({ initialItems = [], buildLocale = null }) {
   const t = useT();
+  const router = useRouter();
+
+  // 是否在中文站 (/cn 或 locale 為 zh/cn)
+  const isCN = useMemo(() => {
+    const loc = router?.locale || buildLocale || "";
+    if (loc && /^(zh|cn)/i.test(loc)) return true;
+    const p = router?.asPath || "";
+    return p === "/cn" || p.startsWith("/cn/");
+  }, [router.locale, router.asPath, buildLocale]);
+
+  // 依語系取得顯示名稱
+  const getDisplayName = (p) => {
+    const zh = pickZhName(p);
+    const en = p?.name || "";
+    return isCN && zh ? zh : en;
+  };
+
+  // 語系前綴（若有中文子路徑）
+  const prefix = isCN ? "/cn" : "";
 
   // Build localized categories with useMemo so it updates when locale changes
   const CATEGORIES = useMemo(
@@ -68,9 +96,12 @@ export default function Home() {
     [t]
   );
 
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [qtyMap, setQtyMap] = useState({});
+  // ✅ 初始就帶 SSR/ISR 好的清單
+  const [items, setItems] = useState(initialItems);
+  const [loading, setLoading] = useState(!initialItems.length);
+  const [qtyMap, setQtyMap] = useState(
+    Object.fromEntries((initialItems || []).map((p) => [p.id, 1]))
+  );
   const [toast, setToast] = useState(null);
 
   // current category (default shows all)
@@ -90,11 +121,11 @@ export default function Home() {
     gridTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  // 客端切換分類時抓資料
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
-        // fetch more and paginate on client (or change API to support server pagination)
         const url = `/api/store/products?per_page=100${
           activeCat ? `&category=${activeCat}` : ""
         }`;
@@ -129,18 +160,30 @@ export default function Home() {
     []
   );
 
+  // ✅ 這裡同時把 name_en / name_zh 存進購物車，摘要才能依語系顯示
   const addToCart = (p) => {
     const q = qtyMap[p.id] ?? 0;
     if (q <= 0) return;
     const priceNumber = p?.prices?.price ? Number(p.prices.price) / 100 : 0;
     const img = p?.images?.[0]?.src || "/images/placeholder.png";
 
+    const enName = p?.name || "";
+    const zhName = pickZhName(p) || "";
+    const displayName = isCN && zhName ? zhName : enName;
+
     cartStore.add(
-      { id: p.id, name: p.name, img, price: priceNumber, sku: p.sku || "" },
+      {
+        id: p.id,
+        name: displayName, // 兼容舊資料
+        name_en: enName, // ✅ 存英文
+        name_zh: zhName, // ✅ 存中文（若無為空字串）
+        img,
+        price: priceNumber,
+        sku: p.sku || "",
+      },
       q
     );
-    // Localized toast
-    showToast(`${t("pd.toast.added")} “${p.name}” (${q}).`);
+    showToast(`${t("pd.toast.added")} “${displayName}” (${q}).`);
     setQty(p.id, 0);
   };
 
@@ -158,8 +201,44 @@ export default function Home() {
     }
   };
 
+  // ====== SEO: canonical / hreflang / JSON-LD ======
+  const base = SITE_URL.replace(/\/+$/, "");
+  const pathPrefix = isCN ? "/cn" : "";
+  const canonical = `${base}${pathPrefix || ""}/`;
+
+  const itemListJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    itemListElement: (items || []).slice(0, 20).map((p, idx) => ({
+      "@type": "ListItem",
+      position: idx + 1,
+      url: `${base}${pathPrefix}/product/${p.id}`,
+      name: getDisplayName(p),
+    })),
+  };
+
   return (
     <Layout>
+      <Head>
+        <title>{isCN ? "商品列表｜中文站" : "Products"}</title>
+        {SITE_URL ? <link rel="canonical" href={canonical} /> : null}
+        {SITE_URL ? (
+          <>
+            <link rel="alternate" hrefLang="x-default" href={`${base}/`} />
+            <link rel="alternate" hrefLang="en" href={`${base}/`} />
+            <link rel="alternate" hrefLang="zh" href={`${base}/cn/`} />
+          </>
+        ) : null}
+        {/* 圖片 CDN 預連線 */}
+        <link rel="preconnect" href="https://i0.wp.com" />
+        <link rel="dns-prefetch" href="https://i0.wp.com" />
+        {/* JSON-LD */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        />
+      </Head>
+
       <main className="bg-[#f4f1f1] pt-20 sm:pt-0">
         {/* Toast */}
         <div className="pointer-events-none fixed inset-0 z-[200] flex items-end justify-center">
@@ -258,6 +337,8 @@ export default function Home() {
                       ? Number(p.prices.price) / 100
                       : null;
                     const tags = storageTagsFromProduct(p);
+                    const displayName = getDisplayName(p);
+
                     return (
                       <div
                         key={p.id}
@@ -265,12 +346,12 @@ export default function Home() {
                       >
                         {/* Image */}
                         <Link
-                          href={`/product/${p.id}`}
-                          aria-label={`${p.name} details`}
+                          href={`${prefix}/product/${p.id}`}
+                          aria-label={`${displayName} details`}
                         >
                           <img
                             src={img}
-                            alt={p.name}
+                            alt={displayName}
                             className="w-[200px] h-auto transition-transform group-hover:scale-[1.05]"
                             loading="lazy"
                           />
@@ -278,7 +359,7 @@ export default function Home() {
 
                         {/* Title & Price */}
                         <div className="item-info mt-3 text-center">
-                          <b className="line-clamp-2">{p.name}</b>
+                          <b className="line-clamp-2">{displayName}</b>
                           {price !== null && (
                             <div className="text-sm text-gray-600">
                               CA$ {price}
@@ -351,7 +432,7 @@ export default function Home() {
                         </button>
 
                         <Link
-                          href={`/product/${p.id}`}
+                          href={`${prefix}/product/${p.id}`}
                           className="mt-2 text-xs underline underline-offset-4 hover:opacity-80"
                         >
                           {t("home.details")}
@@ -412,4 +493,91 @@ export default function Home() {
       </main>
     </Layout>
   );
+}
+
+/* ---------------- SSG + ISR ---------------- */
+export async function getStaticProps({ locale }) {
+  const base = process.env.WC_URL;
+  const ck = process.env.WC_CK;
+  const cs = process.env.WC_CS;
+
+  let initialItems = [];
+  try {
+    // 1) 取 Store API
+    const storeURL = new URL(`${ensureURL(base)}/wp-json/wc/store/products`);
+    storeURL.searchParams.set("per_page", "100");
+    const r = await fetch(storeURL.toString(), {
+      headers: { Accept: "application/json" },
+    });
+    const list = (await r.json()) || [];
+    const ids = Array.isArray(list)
+      ? list
+          .map((p) => p.id)
+          .filter(Boolean)
+          .slice(0, 100)
+      : [];
+
+    // 2) 取 v3 meta_data → 併 zh 名稱
+    let metaMap = new Map();
+    if (ids.length && ck && cs) {
+      const v3 = new URL(`${ensureURL(base)}/wp-json/wc/v3/products`);
+      v3.searchParams.set("include", ids.join(","));
+      v3.searchParams.set("per_page", String(ids.length));
+      v3.searchParams.set("_fields", "id,meta_data");
+      const vr = await fetch(v3.toString(), {
+        headers: {
+          Accept: "application/json",
+          Authorization: basicAuth(ck, cs),
+        },
+      });
+      if (vr.ok) {
+        const v3data = await vr.json();
+        for (const it of Array.isArray(v3data) ? v3data : []) {
+          metaMap.set(it.id, it.meta_data || []);
+        }
+      }
+    }
+
+    initialItems = Array.isArray(list)
+      ? list.map((p) => {
+          const meta = metaMap.get(p.id) || [];
+          const cn = pickCnName(meta);
+          if (!p.extensions) p.extensions = {};
+          if (!p.extensions.custom_acf) p.extensions.custom_acf = {};
+          p.extensions.custom_acf.cn_name = cn;
+          p.extensions.custom_acf.zh_product_name = cn;
+          return p;
+        })
+      : [];
+  } catch (e) {
+    // 靜默失敗，留空陣列
+  }
+
+  return {
+    props: { initialItems, buildLocale: locale ?? null },
+    revalidate: 300, // 5 分鐘
+  };
+}
+
+/* ---- helpers (SSR 用) ---- */
+function ensureURL(u = "") {
+  return String(u).replace(/\/+$/, "");
+}
+function basicAuth(ck, cs) {
+  return "Basic " + Buffer.from(`${ck}:${cs}`).toString("base64");
+}
+function pickCnName(meta = []) {
+  const keys = [
+    "zh_product_name",
+    "cn_name",
+    "zh_name",
+    "chinese_name",
+    "cn_product_name",
+    "中文產品名稱",
+  ];
+  for (const k of keys) {
+    const row = meta.find((m) => m?.key === k && m?.value);
+    if (row?.value) return String(row.value);
+  }
+  return "";
 }

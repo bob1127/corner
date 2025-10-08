@@ -3,6 +3,7 @@
 
 import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useMemo } from "react";
+import Head from "next/head";
 import Layout from "../Layout";
 import { cartStore } from "@/lib/cartStore";
 
@@ -49,15 +50,31 @@ const storageTagsFromProduct = (p) => {
   return [];
 };
 
-export default function ProductDetail() {
+const pickZhName = (p) =>
+  p?.extensions?.custom_acf?.zh_product_name || p?.cn_name || "";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "";
+
+export default function ProductDetail({
+  initialProduct = null,
+  buildLocale = null,
+}) {
   const router = useRouter();
   const t = useT();
   const { id } = router.query;
 
-  const [p, setP] = useState(null);
+  // 是否中文站
+  const isCN = useMemo(() => {
+    const loc = router?.locale || buildLocale || "";
+    if (loc && /^(zh|cn)/i.test(loc)) return true;
+    const path = router?.asPath || "";
+    return path === "/cn" || path.startsWith("/cn/");
+  }, [router.locale, router.asPath, buildLocale]);
+
+  const [p, setP] = useState(initialProduct);
   const [qty, setQty] = useState(1);
   const [err, setErr] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialProduct);
   const [thumbsSwiper, setThumbsSwiper] = useState(null);
 
   // 加入購物車 Toast 狀態
@@ -75,24 +92,30 @@ export default function ProductDetail() {
     setThumbsSwiper(null);
   }, [router.locale, id]);
 
-  // 加入購物車 + 顯示自訂彈窗
+  // ✅ 加入購物車 + 顯示自訂彈窗（同時存中英文名稱）
   const showAddedToast = useCallback((prod, count = 1) => {
     const payload = {
       id: prod.id,
-      name: prod.name,
+      name: prod.name, // 依當前語系顯示名
+      name_en: prod.name_en || "", // 也存英文
+      name_zh: prod.name_zh || "", // 也存中文
       price: prod.price ?? priceFromStore(prod),
       img: prod.img ?? prod?.images?.[0]?.src ?? "/images/placeholder.png",
       qty: Math.max(1, count),
     };
+
     cartStore.add(
       {
         id: payload.id,
         name: payload.name,
+        name_en: payload.name_en, // ✅
+        name_zh: payload.name_zh, // ✅
         img: payload.img,
         price: payload.price,
       },
       payload.qty
     );
+
     setAdded(payload);
   }, []);
 
@@ -103,9 +126,9 @@ export default function ProductDetail() {
     return () => clearTimeout(tmr);
   }, [added]);
 
-  // 取單品（等待 router.isReady；容錯兩種 API 寫法；容忍不同 payload 形狀）
+  // 取單品（若有 SSR 初始資料就不再抓）
   useEffect(() => {
-    if (!router.isReady) return;
+    if (!router.isReady || initialProduct) return;
     let aborted = false;
 
     (async () => {
@@ -149,7 +172,7 @@ export default function ProductDetail() {
     return () => {
       aborted = true;
     };
-  }, [router.isReady, router.query.id, router.locale]);
+  }, [router.isReady, router.query.id, router.locale, initialProduct]);
 
   if (err) {
     return (
@@ -172,12 +195,81 @@ export default function ProductDetail() {
   const price = priceFromStore(p);
   const storageTags = storageTagsFromProduct(p);
 
+  const zh = pickZhName(p) || "";
+  const en = p?.name || "";
+  const displayName = isCN && zh ? zh : en;
+  const prefix = isCN ? "/cn" : "";
+
+  // ✅ 右側加入購物車：帶入雙語
   const add = () => {
-    showAddedToast({ id: p.id, name: p.name, img: imgs?.[0]?.src, price }, qty);
+    showAddedToast(
+      {
+        id: p.id,
+        name: displayName,
+        name_en: en,
+        name_zh: zh,
+        img: imgs?.[0]?.src,
+        price,
+      },
+      qty
+    );
+  };
+
+  // ====== SEO：canonical / hreflang / Product JSON-LD ======
+  const base = SITE_URL.replace(/\/+$/, "");
+  const canonical = SITE_URL ? `${base}${prefix}/product/${p.id}` : undefined;
+
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: displayName,
+    sku: p?.sku || undefined,
+    image: imgs.map((i) => i.src).filter(Boolean),
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "CAD",
+      price: String(price || 0),
+      availability: p?.is_in_stock
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+      url: canonical,
+    },
   };
 
   return (
     <Layout>
+      <Head>
+        <title>{displayName}</title>
+        {canonical ? <link rel="canonical" href={canonical} /> : null}
+        {SITE_URL ? (
+          <>
+            <link
+              rel="alternate"
+              hrefLang="x-default"
+              href={`${base}/product/${p.id}`}
+            />
+            <link
+              rel="alternate"
+              hrefLang="en"
+              href={`${base}/product/${p.id}`}
+            />
+            <link
+              rel="alternate"
+              hrefLang="zh"
+              href={`${base}/cn/product/${p.id}`}
+            />
+          </>
+        ) : null}
+        {/* 圖片 CDN 預連線 */}
+        <link rel="preconnect" href="https://i0.wp.com" />
+        <link rel="dns-prefetch" href="https://i0.wp.com" />
+        {/* JSON-LD */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+        />
+      </Head>
+
       {/* 修正 Swiper 高度 */}
       <style jsx global>{`
         .product-swiper,
@@ -250,10 +342,10 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          {/* 右：內容 */}
+          {/* 右：內容（顯示 displayName） */}
           <div className="flex pl-0 sm:pl-10 items-start pt-0 sm:pt-20">
             <div className="right-info w-full">
-              <h1 className="text-2xl font-bold mb-2">{p.name}</h1>
+              <h1 className="text-2xl font-bold mb-2">{displayName}</h1>
               <div className="text-xl mb-2">CA$ {price}</div>
 
               {/* 保存方式 */}
@@ -324,7 +416,7 @@ export default function ProductDetail() {
           </div>
         )}
 
-        {/* 推薦產品 */}
+        {/* 推薦產品（修正：子層不再直接 add） */}
         <section className="mt-16">
           <h3 className="text-xl font-bold mb-4">
             {t("pd.other", "You may also like")}
@@ -353,7 +445,7 @@ export default function ProductDetail() {
   );
 }
 
-/* 推薦區 */
+/* 推薦區（修正：不在子層 add，只回傳 payload 給父層） */
 function RelatedCarousel({
   currentId,
   categories,
@@ -378,11 +470,12 @@ function RelatedCarousel({
         const payload = {
           id: prod.id,
           name: prod.name,
+          name_en: prod.name_en || "",
+          name_zh: prod.name_zh || "",
           img: prod.img,
           price: prod.price,
         };
-        cartStore.add(payload, 1);
-        onQuickAdd?.(payload);
+        onQuickAdd?.(payload); // 只交給父層處理加入購物車
       }}
     />
   );
@@ -454,4 +547,179 @@ function AddToCartToast({ open, onClose, item, onGoCart, t }) {
       )}
     </AnimatePresence>
   );
+}
+
+/* ---------------- SSG + ISR ---------------- */
+export async function getStaticPaths() {
+  const base = process.env.WC_URL;
+  let paths = [];
+  try {
+    const url = new URL(`${ensureURL(base)}/wp-json/wc/store/products`);
+    url.searchParams.set("per_page", "100");
+    const r = await fetch(url.toString(), {
+      headers: { Accept: "application/json" },
+    });
+    const arr = await r.json();
+    if (Array.isArray(arr)) {
+      paths = arr.map((p) => ({ params: { id: String(p.id) } }));
+    }
+  } catch {}
+  return {
+    paths,
+    fallback: "blocking", // 首訪時即時產生
+  };
+}
+
+export async function getStaticProps({ params, locale }) {
+  const base = process.env.WC_URL;
+  const ck = process.env.WC_CK;
+  const cs = process.env.WC_CS;
+
+  const id = params?.id;
+  if (!id) return { notFound: true };
+
+  let product = null;
+  try {
+    // ① Store API 取單品
+    const r = await fetch(
+      `${ensureURL(base)}/wp-json/wc/store/products/${id}`,
+      {
+        headers: { Accept: "application/json" },
+      }
+    );
+    const data = await r.json();
+    if (!r.ok || !data?.id) throw new Error("Product not found");
+    product = data;
+
+    // ② 解析保存方式 terms 名稱（若 options 是 ID）
+    product = await resolveStorageAttributeForSingle(base, product, ck, cs);
+
+    // ③ 追加 v3 meta_data → 併入 zh 名
+    if (ck && cs) {
+      const v3 = `${ensureURL(
+        base
+      )}/wp-json/wc/v3/products/${id}?_fields=id,meta_data`;
+      const vr = await fetch(v3, {
+        headers: {
+          Accept: "application/json",
+          Authorization: basicAuth(ck, cs),
+        },
+      });
+      if (vr.ok) {
+        const detail = await vr.json();
+        const cn = pickCnName(detail?.meta_data || []);
+        if (!product.extensions) product.extensions = {};
+        if (!product.extensions.custom_acf) product.extensions.custom_acf = {};
+        product.extensions.custom_acf.cn_name = cn;
+        product.extensions.custom_acf.zh_product_name = cn;
+      }
+    }
+  } catch {
+    return { notFound: true, revalidate: 60 };
+  }
+
+  return {
+    props: { initialProduct: product, buildLocale: locale ?? null },
+    revalidate: 300, // 5 分鐘
+  };
+}
+
+/* ---- helpers (SSR 用；與你的 API 同邏輯) ---- */
+function ensureURL(u = "") {
+  return String(u).replace(/\/+$/, "");
+}
+function basicAuth(ck, cs) {
+  return "Basic " + Buffer.from(`${ck}:${cs}`).toString("base64");
+}
+async function resolveStorageAttributeForSingle(base, product, ck, cs) {
+  const found = getStorageRawOptions(product);
+  if (!found) return product;
+  const { attr, raw } = found;
+
+  const ids = raw
+    .map((v) => (typeof v === "number" ? v : parseInt(v)))
+    .filter((v) => Number.isInteger(v));
+
+  if (ids.length === 0 || !ck || !cs) return product;
+
+  try {
+    const attrsRes = await fetch(
+      `${ensureURL(base)}/wp-json/wc/v3/products/attributes?per_page=100`,
+      {
+        headers: {
+          Accept: "application/json",
+          Authorization: basicAuth(ck, cs),
+        },
+      }
+    );
+    if (!attrsRes.ok) return product;
+
+    const attrs = await attrsRes.json();
+    const storageDef = attrs.find((a) =>
+      String(a.slug || "")
+        .toLowerCase()
+        .includes("storage")
+    );
+    if (!storageDef) return product;
+
+    const termsRes = await fetch(
+      `${ensureURL(base)}/wp-json/wc/v3/products/attributes/${
+        storageDef.id
+      }/terms?include=${ids.join(",")}&per_page=100`,
+      {
+        headers: {
+          Accept: "application/json",
+          Authorization: basicAuth(ck, cs),
+        },
+      }
+    );
+    if (!termsRes.ok) return product;
+
+    const terms = await termsRes.json();
+    const mapIdToName = new Map(terms.map((t) => [t.id, t.name]));
+    const names = ids.map((id) => mapIdToName.get(id)).filter(Boolean);
+    if (names.length) attr.options = names;
+  } catch {}
+  return product;
+}
+function getStorageRawOptions(product) {
+  const attrs = Array.isArray(product?.attributes) ? product.attributes : [];
+  const storageAttr = attrs.find((a) => {
+    const name = String(a?.name || "").toLowerCase();
+    const slug = String(a?.slug || "").toLowerCase();
+    const tax = String(a?.taxonomy || "").toLowerCase();
+    return (
+      name.includes("保存方式") ||
+      slug === "storage" ||
+      slug === "pa_storage" ||
+      tax === "pa_storage"
+    );
+  });
+  if (!storageAttr) return null;
+
+  if (Array.isArray(storageAttr.terms) && storageAttr.terms.length > 0) {
+    return {
+      attr: storageAttr,
+      raw: storageAttr.terms.map((t) => t?.id || t?.name),
+    };
+  }
+  if (Array.isArray(storageAttr.options) && storageAttr.options.length > 0) {
+    return { attr: storageAttr, raw: storageAttr.options.slice() };
+  }
+  return { attr: storageAttr, raw: [] };
+}
+function pickCnName(meta = []) {
+  const keys = [
+    "zh_product_name",
+    "cn_name",
+    "zh_name",
+    "chinese_name",
+    "cn_product_name",
+    "中文產品名稱",
+  ];
+  for (const k of keys) {
+    const row = meta.find((m) => m?.key === k && m?.value);
+    if (row?.value) return String(row.value);
+  }
+  return "";
 }

@@ -2,121 +2,139 @@
 export default async function handler(req, res) {
   const { id } = req.query;
   const base = process.env.WC_URL;
+  const ck = process.env.WC_CK;
+  const cs = process.env.WC_CS;
+
   if (!base) {
     return res.status(500).json({ ok: false, message: "❌ WC_URL 未設定" });
   }
+  if (!id) {
+    return res.status(400).json({ ok: false, message: "缺少商品 ID" });
+  }
 
   try {
-    // ① 使用 WooCommerce Store API 取得商品資料（公開端點）
-    const r = await fetch(`${base}/wp-json/wc/store/products/${id}`, {
+    // ① Store API 取單品
+    const r = await fetch(`${ensureURL(base)}/wp-json/wc/store/products/${id}`, {
       headers: { Accept: "application/json" },
     });
-    const data = await r.json();
+    const product = await r.json();
 
-    // ② 嘗試轉換保存方式（storage / pa_storage）的 term ID → 名稱
-    const resolved = await resolveStorageAttributeForSingle(base, data);
+    // 容錯：若不是 2xx 直接回傳 Woo 原樣
+    if (!r.ok || !product?.id) {
+      return res.status(r.status).json(product);
+    }
 
-    return res.status(r.status).json(resolved);
+    // ② 解析保存方式（你原本的程式）
+    const resolved = await resolveStorageAttributeForSingle(base, product, ck, cs);
+
+    // ③ 追加 v3 的 meta_data → 併入 ACF 中文名
+    if (ck && cs) {
+      const v3 = `${ensureURL(base)}/wp-json/wc/v3/products/${id}?_fields=id,meta_data`;
+      const vr = await fetch(v3, {
+        headers: {
+          Accept: "application/json",
+          Authorization: basicAuth(ck, cs),
+        },
+      });
+      if (vr.ok) {
+        const detail = await vr.json();
+        const cn = pickCnName(detail?.meta_data || []);
+        if (!resolved.extensions) resolved.extensions = {};
+        if (!resolved.extensions.custom_acf) resolved.extensions.custom_acf = {};
+        resolved.extensions.custom_acf.cn_name = cn;
+        resolved.extensions.custom_acf.zh_product_name = cn;
+      }
+    }
+
+    return res.status(200).json(resolved);
   } catch (e) {
     console.error("❌ WooCommerce 單品 API 錯誤：", e);
     return res.status(500).json({ ok: false, message: String(e) });
   }
 }
 
-/* -------------------- helpers -------------------- */
+/* ---------------- helpers ---------------- */
 
-// 建立 Basic Auth header（v3 API 需授權）
-function authHeader() {
-  const key = process.env.WC_KEY;
-  const secret = process.env.WC_SECRET;
-  if (!key || !secret) return null;
-  const token = Buffer.from(`${key}:${secret}`).toString("base64");
-  return { Authorization: `Basic ${token}` };
+function ensureURL(u = "") {
+  return String(u).replace(/\/+$/, "");
 }
 
-// 從商品裡取出保存方式屬性（storage / pa_storage）
-function getStorageRawOptions(product) {
-  if (!product) return null;
-  const attrs = Array.isArray(product.attributes) ? product.attributes : [];
-
-  const storageAttr = attrs.find((a) => {
-    const name = String(a?.name || "").toLowerCase();
-    const slug = String(a?.slug || "").toLowerCase();
-    const tax = String(a?.taxonomy || "").toLowerCase();
-    return (
-      name.includes("保存方式") ||
-      slug === "storage" ||
-      slug === "pa_storage" ||
-      tax === "pa_storage"
-    );
-  });
-
-  if (!storageAttr) return null;
-
-  // 優先處理 Store API 的 terms（正確格式）
-  if (Array.isArray(storageAttr.terms) && storageAttr.terms.length > 0) {
-    return { attr: storageAttr, raw: storageAttr.terms.map((t) => t?.id || t?.name) };
-  }
-
-  // 備援：options 陣列（舊版本 WooCommerce）
-  if (Array.isArray(storageAttr.options) && storageAttr.options.length > 0) {
-    return { attr: storageAttr, raw: storageAttr.options.slice() };
-  }
-
-  return { attr: storageAttr, raw: [] };
+function basicAuth(ck, cs) {
+  return "Basic " + Buffer.from(`${ck}:${cs}`).toString("base64");
 }
 
-/**
- * 如果保存方式的 options 是數字 ID，就去 WooCommerce v3 API 查 term 名稱
- */
-async function resolveStorageAttributeForSingle(base, product) {
+// 找出保存方式 attribute（storage / pa_storage），若是 ID 就轉成名稱
+async function resolveStorageAttributeForSingle(base, product, ck, cs) {
   const found = getStorageRawOptions(product);
   if (!found) return product;
-
   const { attr, raw } = found;
+
   const ids = raw
     .map((v) => (typeof v === "number" ? v : parseInt(v)))
     .filter((v) => Number.isInteger(v));
 
-  // 若都是名稱（非數字），直接回傳
-  if (ids.length === 0) return product;
-
-  const header = authHeader();
-  if (!header) return product; // 無授權，無法進一步解析名稱
+  if (ids.length === 0 || !ck || !cs) return product;
 
   try {
-    // 1️⃣ 抓全部 attributes 找出 storage
-    const attrsRes = await fetch(`${base}/wp-json/wc/v3/products/attributes?per_page=100`, {
-      headers: { ...header, Accept: "application/json" },
+    const attrsRes = await fetch(`${ensureURL(base)}/wp-json/wc/v3/products/attributes?per_page=100`, {
+      headers: { Accept: "application/json", Authorization: basicAuth(ck, cs) },
     });
     if (!attrsRes.ok) return product;
 
     const attrs = await attrsRes.json();
-    const storageDef = attrs.find((a) => {
-      const slug = String(a.slug || "").toLowerCase();
-      return slug === "storage" || slug === "pa_storage";
-    });
+    const storageDef = attrs.find((a) => String(a.slug || "").toLowerCase().includes("storage"));
     if (!storageDef) return product;
 
-    // 2️⃣ 查該 storage attribute 的 term 名稱
-    const include = ids.join(",");
     const termsRes = await fetch(
-      `${base}/wp-json/wc/v3/products/attributes/${storageDef.id}/terms?include=${include}&per_page=100`,
-      { headers: { ...header, Accept: "application/json" } }
+      `${ensureURL(base)}/wp-json/wc/v3/products/attributes/${storageDef.id}/terms?include=${ids.join(",")}&per_page=100`,
+      { headers: { Accept: "application/json", Authorization: basicAuth(ck, cs) } }
     );
     if (!termsRes.ok) return product;
 
     const terms = await termsRes.json();
     const mapIdToName = new Map(terms.map((t) => [t.id, t.name]));
     const names = ids.map((id) => mapIdToName.get(id)).filter(Boolean);
-
-    // 3️⃣ 覆蓋 attr.options 為名稱陣列
-    if (names.length) {
-      attr.options = names;
-    }
+    if (names.length) attr.options = names;
   } catch (err) {
     console.warn("⚠️ 無法解析保存方式 term 名稱：", err);
   }
 
   return product;
+}
+
+function getStorageRawOptions(product) {
+  const attrs = Array.isArray(product?.attributes) ? product.attributes : [];
+  const storageAttr = attrs.find((a) => {
+    const name = String(a?.name || "").toLowerCase();
+    const slug = String(a?.slug || "").toLowerCase();
+    const tax = String(a?.taxonomy || "").toLowerCase();
+    return (
+      name.includes("保存方式") || slug === "storage" || slug === "pa_storage" || tax === "pa_storage"
+    );
+  });
+  if (!storageAttr) return null;
+
+  if (Array.isArray(storageAttr.terms) && storageAttr.terms.length > 0) {
+    return { attr: storageAttr, raw: storageAttr.terms.map((t) => t?.id || t?.name) };
+  }
+  if (Array.isArray(storageAttr.options) && storageAttr.options.length > 0) {
+    return { attr: storageAttr, raw: storageAttr.options.slice() };
+  }
+  return { attr: storageAttr, raw: [] };
+}
+
+function pickCnName(meta = []) {
+  const keys = [
+    "zh_product_name",
+    "cn_name",
+    "zh_name",
+    "chinese_name",
+    "cn_product_name",
+    "中文產品名稱",
+  ];
+  for (const k of keys) {
+    const row = meta.find((m) => m?.key === k && m?.value);
+    if (row?.value) return String(row.value);
+  }
+  return "";
 }

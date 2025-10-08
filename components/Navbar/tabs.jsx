@@ -1,7 +1,7 @@
 // components/SlideTabsExample.jsx
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
@@ -231,6 +231,24 @@ export const SlideTabsExample = () => {
   const router = useRouter();
   const t = useT();
 
+  /* ===== 語系判斷與路徑前綴 ===== */
+  const isCN = useMemo(() => {
+    const loc = router?.locale || "";
+    if (loc && /^(zh|cn)/i.test(loc)) return true;
+    const p = router?.asPath || "";
+    return p === "/cn" || p.startsWith("/cn/");
+  }, [router.locale, router.asPath]);
+
+  const prefix = isCN ? "/cn" : "";
+  const toLocalePath = (path = "/") => `${prefix}${path === "/" ? "" : path}`;
+
+  /* ===== 名稱挑選：依語系顯示 name_zh / name_en，並向後相容 ===== */
+  const itemName = (it) => {
+    const zh = it?.name_zh || it?.zh_name || it?.cn_name;
+    const en = it?.name_en || it?.name;
+    return isCN ? zh || en || it?.name || "" : en || zh || it?.name || "";
+  };
+
   // === 滾動狀態 + 導覽列高度量測 ===
   const [scrolled, setScrolled] = useState(false);
   const headerRef = useRef(null);
@@ -324,7 +342,7 @@ export const SlideTabsExample = () => {
             {/* 左：手機 Logo 佔位 */}
             <div className="w-1/3 md:w-1/3">
               <div className="md:hidden">
-                <Link href="/" aria-label="Home">
+                <Link href={toLocalePath("/")} aria-label="Home">
                   <div className="w-[160px] p-2">
                     <Image
                       src="/images/logo/有香餐飲集團-logo.png"
@@ -340,7 +358,7 @@ export const SlideTabsExample = () => {
 
             {/* 中：桌機選單 */}
             <div className="hidden md:flex w-[60%] lg:w-[80%] items-center justify-center gap-8">
-              <Link href="/" aria-label="Home" className="pl-2">
+              <Link href={toLocalePath("/")} aria-label="Home" className="pl-2">
                 <Image
                   src="/images/logo/有香餐飲集團-logo.png"
                   alt="有香餐飲集團"
@@ -355,7 +373,7 @@ export const SlideTabsExample = () => {
             {/* 右：訂購 / 會員 / 語系 / 購物車 / 漢堡 */}
             <div className="flex w-2/3 md:w-1/3 items-center justify-end pr-8 gap-3">
               <Link
-                href="/"
+                href={toLocalePath("/products")}
                 className="rounded-[30px] hidden sm:block border border-white/30 bg-[#9c2121] px-3 py-1 text-[14px] text-white hover:bg-[#881b1b] transition-colors"
               >
                 {t("nav.order")}
@@ -419,7 +437,7 @@ export const SlideTabsExample = () => {
                               auth.user.email}
                           </div>
                           <Link
-                            href="/account"
+                            href={toLocalePath("/account")}
                             className="block rounded-lg px-3 py-2 hover:bg-white/10 transition-colors"
                             onClick={() => setUserOpen(false)}
                           >
@@ -540,13 +558,13 @@ export const SlideTabsExample = () => {
                             <div className="flex items-center gap-3">
                               <img
                                 src={it.img}
-                                alt={it.name}
+                                alt={itemName(it)}
                                 className="h-20 w-20 shrink-0 rounded-lg bg-gray-50 object-contain ring-1 ring-black/5"
                               />
 
                               <div className="min-w-0 flex-1">
                                 <div className="line-clamp-2 text-sm font-medium">
-                                  {it.name}
+                                  {itemName(it)}
                                 </div>
 
                                 <div className="mt-2 flex items-center gap-2">
@@ -647,7 +665,7 @@ export const SlideTabsExample = () => {
                           className="rounded-xl bg-black px-4 py-3 text-white shadow-sm hover:opacity-90 active:scale-[0.99] transition"
                           onClick={() => {
                             setCartOpen(false);
-                            router.push("/checkout");
+                            router.push(toLocalePath("/checkout"));
                           }}
                           disabled={cart.length === 0}
                         >
@@ -823,7 +841,7 @@ export const SlideTabsExample = () => {
               </div>
               <div className="flex flex-col gap-2 py-4 px-4">
                 <Link
-                  href="/products"
+                  href={toLocalePath("/products")}
                   className="py-3 text-gray-800 border-b border-gray-200 hover:text-black"
                 >
                   {t("nav.order")}
