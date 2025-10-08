@@ -1,7 +1,7 @@
 // pages/checkout.jsx
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import Image from "next/image";
 import { cartStore } from "@/lib/cartStore";
@@ -30,8 +30,11 @@ function getAreas(t) {
       freeThreshold: 120,
     },
     {
-      label: t("co.area.surrey", "White Rock / South Surrey / North Surrey"),
-      value: "White Rock / South Surrey / North Surrey",
+      label: t(
+        "co.area.surrey",
+        "South Surrey / White Rock / North Surrey / North Delta"
+      ),
+      value: "South Surrey / White Rock / North Surrey / North Delta",
       fee: 14,
       tax: 5,
       freeThreshold: 150,
@@ -42,6 +45,30 @@ function getAreas(t) {
 export default function CheckoutPage() {
   const router = useRouter();
   const t = useT();
+
+  /* ===== 語系判斷與路徑處理 ===== */
+  const isCN = useMemo(() => {
+    const loc = router?.locale || "";
+    if (loc && /^(zh|cn)/i.test(loc)) return true;
+    const p = router?.asPath || "";
+    return p === "/cn" || p.startsWith("/cn/");
+  }, [router.locale, router.asPath]);
+
+  const prefix = isCN ? "/cn" : "";
+  const toLocalePath = (path = "/") =>
+    `${prefix}${path.startsWith("/") ? path : `/${path}`}`;
+
+  /* ===== 名稱挑選（依語系 + 後相容） ===== */
+  const itemName = (it) => {
+    const zh =
+      it?.name_zh ||
+      it?.zh_name ||
+      it?.cn_name ||
+      it?.extensions?.custom_acf?.zh_product_name ||
+      "";
+    const en = it?.name_en || it?.name || "";
+    return isCN ? zh || en : en || zh;
+  };
 
   const AREAS = useMemo(() => getAreas(t), [t]);
 
@@ -56,7 +83,7 @@ export default function CheckoutPage() {
     address: "",
     wechat: "",
     contactOther: "",
-    payment: "", // 前端保留，但不做驗證
+    payment: "",
     deliveryArea: "",
     deliveryAddress: "",
   });
@@ -97,13 +124,10 @@ export default function CheckoutPage() {
       return alert(
         t("co.alert.fillBasic", "Please enter name, phone, and email")
       );
-    // （已移除付款方式驗證）
     if (!form.deliveryArea)
       return alert(t("co.alert.chooseArea", "Please select a delivery area"));
     if (!form.deliveryAddress.trim())
       return alert(t("co.alert.fullAddr", "Please enter a full address"));
-
-    // Minimum order CA$80 for delivery
     if (subtotal < 80) {
       alert(t("co.alert.min80", "Order minimum is CA$80 for delivery"));
       return;
@@ -118,7 +142,7 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cart,
-          form: { ...form, address: fullAddress }, // payment 會帶上（即便為空字串）
+          form: { ...form, address: fullAddress },
           shipping_fee: shippingFee,
           tax: taxAmount,
         }),
@@ -130,12 +154,13 @@ export default function CheckoutPage() {
           json?.detail?.message ||
           json?.message ||
           t("co.alert.noWoo", "No response from WooCommerce");
-        return alert(t("co.alert.failed", "Order failed: ") + msg);
+        alert(t("co.alert.failed", "Order failed: ") + msg);
+        return;
       }
 
       const order = json.order;
       cartStore.clear?.();
-      router.push(`/thank-you?id=${order.id}`);
+      router.push(toLocalePath(`/thank-you?id=${order.id}`));
     } catch (e) {
       console.error(e);
       alert(
@@ -281,7 +306,6 @@ export default function CheckoutPage() {
                 )}
               </p>
 
-              {/* ✅ 新增的動態提示（中英切換） */}
               <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2 text-sm">
                 {t(
                   "co.deliveryDates",
@@ -308,14 +332,14 @@ export default function CheckoutPage() {
                     <div className="flex items-center gap-3">
                       <Image
                         src={it.img}
-                        alt={it.name}
+                        alt={itemName(it)}
                         width={400}
                         height={400}
                         className="rounded max-w-[110px] border object-contain bg-white"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium line-clamp-2">
-                          {it.name}
+                          {itemName(it)}
                         </div>
                         <div className="mt-2 flex items-center gap-2">
                           <button
@@ -335,7 +359,7 @@ export default function CheckoutPage() {
                             onChange={(e) =>
                               cartStore.setQty(
                                 it.id,
-                                Math.max(1, parseInt(e.target.value || "1"))
+                                Math.max(1, parseInt(e.target.value || "1", 10))
                               )
                             }
                           />
