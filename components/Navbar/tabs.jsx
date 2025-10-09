@@ -176,7 +176,7 @@ function LangSwitcher({ scrolled }) {
   const { locale } = router;
 
   const baseWrap =
-    "flex items-center rounded-full overflow-hidden border transition-colors";
+    "flex items-center rounded-full  overflow-hidden border transition-colors";
   const wrapTheme = scrolled
     ? "border-black/10 bg-black/5 text-black"
     : "border-white/20 bg-black/30 text-white";
@@ -372,13 +372,6 @@ export const SlideTabsExample = () => {
 
             {/* 右：訂購 / 會員 / 語系 / 購物車 / 漢堡 */}
             <div className="flex w-2/3 md:w-1/3 items-center justify-end pr-8 gap-3">
-              <Link
-                href={toLocalePath("/products")}
-                className="rounded-[30px] hidden sm:block border border-white/30 bg-[#9c2121] px-3 py-1 text-[14px] text-white hover:bg-[#881b1b] transition-colors"
-              >
-                {t("nav.order")}
-              </Link>
-
               {/* 會員 icon */}
               <div className="relative">
                 <button
