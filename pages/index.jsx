@@ -327,7 +327,9 @@ export default function Home({ initialItems = [], buildLocale = null }) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -50 }}
                   transition={{ duration: 0.45, ease: "easeInOut" }}
-                  className="grid max-w-[1600px] mx-auto w-[92%] grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 sm:gap-8 my-12"
+                  className="grid max-w-[1600px] mx-auto w-[92%] grid-cols-1
+                             sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5
+                             gap-6 sm:gap-8 my-12"
                 >
                   {pageItems.map((p) => {
                     const q = qtyMap[p.id] ?? 0;
@@ -342,101 +344,114 @@ export default function Home({ initialItems = [], buildLocale = null }) {
                     return (
                       <div
                         key={p.id}
-                        className="item flex flex-col justify-center items-center group bg-white p-4 border border-gray-100 hover:shadow-md transition"
+                        className="item relative flex flex-col justify-center items-center group bg-white p-4 border border-gray-100 hover:shadow-md transition"
                       >
-                        {/* Image */}
+                        {/* 覆蓋整張卡片的 Link（置於最上層） */}
                         <Link
                           href={`${prefix}/product/${p.id}`}
                           aria-label={`${displayName} details`}
-                        >
+                          className="absolute inset-0 z-20"
+                        />
+
+                        {/* 內容層（一般資訊：圖片/標題/價格） */}
+                        <div className="relative z-10 flex flex-col items-center">
+                          {/* 圖片：點擊會被上面的覆蓋層攔截 → 導頁 */}
                           <img
                             src={img}
                             alt={displayName}
                             className="w-[200px] h-auto transition-transform group-hover:scale-[1.05]"
                             loading="lazy"
                           />
-                        </Link>
 
-                        {/* Title & Price */}
-                        <div className="item-info mt-3 text-center">
-                          <b className="line-clamp-2">{displayName}</b>
-                          {price !== null && (
-                            <div className="text-sm text-gray-600">
-                              CA$ {price}
+                          {/* Title & Price */}
+                          <div className="item-info mt-3 text-center">
+                            <b className="line-clamp-2">{displayName}</b>
+                            {price !== null && (
+                              <div className="text-sm text-gray-600">
+                                CA$ {price}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Storage tags */}
+                          {tags.length > 0 && (
+                            <div className="mt-2 flex flex-wrap justify-center gap-2">
+                              {tags.map((tLabel, i) => {
+                                const isCold = /冷藏/.test(tLabel);
+                                const isFrozen = /冷凍/.test(tLabel);
+                                const base =
+                                  "inline-block px-3 py-1 rounded text-xs";
+                                const cls = isFrozen
+                                  ? "bg-red-100 text-red-800"
+                                  : isCold
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-gray-100 text-gray-800";
+                                return (
+                                  <span key={i} className={`${base} ${cls}`}>
+                                    {tLabel}
+                                  </span>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
 
-                        {/* Storage tags */}
-                        {tags.length > 0 && (
-                          <div className="mt-2 flex flex-wrap justify-center gap-2">
-                            {tags.map((tLabel, i) => {
-                              const isCold = /冷藏/.test(tLabel);
-                              const isFrozen = /冷凍/.test(tLabel);
-                              const base =
-                                "inline-block px-3 py-1 rounded text-xs";
-                              const cls = isFrozen
-                                ? "bg-red-100 text-red-800"
-                                : isCold
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-gray-100 text-gray-800";
-                              return (
-                                <span key={i} className={`${base} ${cls}`}>
-                                  {tLabel}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
+                        {/* 互動區（放在更高層級，能蓋過覆蓋層進行操作） */}
+                        <div
+                          className="relative z-30 mt-4 flex flex-col items-center gap-3"
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          {/* Quantity */}
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => setQty(p.id, q - 1)}
+                              className="rounded-xl border px-3 py-1"
+                              disabled={q <= 0}
+                            >
+                              −
+                            </button>
 
-                        {/* Quantity */}
-                        <div className="mt-4 flex items-center gap-3">
+                            <input
+                              type="number"
+                              min={0}
+                              value={q}
+                              onChange={(e) =>
+                                setQty(
+                                  p.id,
+                                  Math.max(
+                                    0,
+                                    parseInt(e.target.value || "0", 10)
+                                  )
+                                )
+                              }
+                              className="w-16 rounded-xl border px-2 py-1 text-center no-spin"
+                            />
+
+                            <button
+                              onClick={() => setQty(p.id, q + 1)}
+                              className="rounded-xl border px-3 py-1"
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          {/* Add to cart */}
                           <button
-                            onClick={() => setQty(p.id, q - 1)}
-                            className="rounded-xl border px-3 py-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToCart(p);
+                            }}
                             disabled={q <= 0}
+                            className={`rounded-xl px-4 py-2 text-white ${
+                              q > 0
+                                ? "bg-[#ca9121] hover:opacity-90"
+                                : "bg-gray-400 cursor-not-allowed"
+                            }`}
                           >
-                            −
-                          </button>
-                          <input
-                            type="number"
-                            min={0}
-                            value={q}
-                            onChange={(e) =>
-                              setQty(
-                                p.id,
-                                Math.max(0, parseInt(e.target.value || "0", 10))
-                              )
-                            }
-                            className="w-16 rounded-xl border px-2 py-1 text-center"
-                          />
-                          <button
-                            onClick={() => setQty(p.id, q + 1)}
-                            className="rounded-xl border px-3 py-1"
-                          >
-                            +
+                            {t("prod.addToCart")}
                           </button>
                         </div>
-
-                        {/* Add to cart */}
-                        <button
-                          onClick={() => addToCart(p)}
-                          disabled={q <= 0}
-                          className={`mt-3 rounded-xl px-4 py-2 text-white ${
-                            q > 0
-                              ? "bg-black hover:opacity-90"
-                              : "bg-gray-400 cursor-not-allowed"
-                          }`}
-                        >
-                          {t("prod.addToCart")}
-                        </button>
-
-                        <Link
-                          href={`${prefix}/product/${p.id}`}
-                          className="mt-2 text-xs underline underline-offset-4 hover:opacity-80"
-                        >
-                          {t("home.details")}
-                        </Link>
                       </div>
                     );
                   })}
@@ -490,6 +505,20 @@ export default function Home({ initialItems = [], buildLocale = null }) {
             </>
           )}
         </section>
+
+        {/* 隱藏 number input 的預設加減箭頭 */}
+        <style jsx global>{`
+          /* Chrome / Safari */
+          input[type="number"].no-spin::-webkit-outer-spin-button,
+          input[type="number"].no-spin::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+          }
+          /* Firefox */
+          input[type="number"].no-spin {
+            -moz-appearance: textfield;
+          }
+        `}</style>
       </main>
     </Layout>
   );

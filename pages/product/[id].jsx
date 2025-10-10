@@ -507,7 +507,7 @@ function AddToCartToast({ open, onClose, item, onGoCart, t }) {
             onClick={onClose}
           />
           <motion.div
-            className="fixed z-50 left-1/2 -translate-x-1/2 bottom-4 w-[92vw] sm:w-[560px]"
+            className="fixed z-50 right-1/2 -translate-x-1/2 bottom-4 w-[92vw] ml-4 sm:w-[560px]"
             initial={{ y: 80, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 80, opacity: 0 }}
