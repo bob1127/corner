@@ -22,6 +22,10 @@
   font-style: normal;
   font-display: swap;
 }
+.ios-scroll-fix {
+  -webkit-overflow-scrolling: touch; /* iOS 惯性滚动 */
+  overscroll-behavior: contain;       /* 避免邊緣拉動牽動到背景 */
+}
 .primary {
   @apply bg-brand text-white rounded-xl px-4 py-2 hover:bg-brand/80 transition;
 }
