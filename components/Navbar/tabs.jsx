@@ -374,7 +374,7 @@ export const SlideTabsExample = () => {
             <div className="flex w-2/3 md:w-1/3 items-center justify-end pr-0 sm:pr-8 gap-1">
               {/* 會員 icon */}
               <div className="relative">
-                <button
+                {/* <button
                   aria-label="user"
                   onClick={() => setUserOpen((v) => !v)}
                   className={[
@@ -385,7 +385,7 @@ export const SlideTabsExample = () => {
                   ].join(" ")}
                 >
                   <User2 size={18} />
-                </button>
+                </button> */}
 
                 <AnimatePresence>
                   {userOpen && (
