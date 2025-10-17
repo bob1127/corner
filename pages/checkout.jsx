@@ -9,6 +9,12 @@ import Layout from "./Layout";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
+/* === 四捨五入（Half Up）工具：避免浮點誤差 === */
+function roundHalfUp(value, decimals = 0) {
+  const factor = Math.pow(10, decimals);
+  return Math.round((value + Number.EPSILON) * factor) / factor;
+}
+
 /* === Areas factory so labels can be localized === */
 function getAreas(t) {
   return [
@@ -110,7 +116,9 @@ export default function CheckoutPage() {
     shippingFee = 0;
   }
 
-  const taxAmount = Math.round((subtotal * taxRate) / 100);
+  /* === 稅金計算（改為：四捨五入到小數點第 3 位，顯示兩位小數） === */
+  const taxBase = (subtotal * taxRate) / 100; // 原始稅額
+  const taxAmount = roundHalfUp(taxBase, 3); // 先四捨五入到第 3 位小數（例：14.505 → 14.505）
   const total = subtotal + shippingFee + taxAmount;
 
   const onChange = (key) => (e) => {
@@ -144,7 +152,7 @@ export default function CheckoutPage() {
           cart,
           form: { ...form, address: fullAddress },
           shipping_fee: shippingFee,
-          tax: taxAmount,
+          tax: taxAmount, // 傳遞與顯示一致的稅額（已 3 位小數四捨五入）
         }),
       });
 
@@ -372,7 +380,7 @@ export default function CheckoutPage() {
                             <Plus size={16} />
                           </button>
                           <button
-                            className="ml-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-red-50 hover:text-red-600"
+                            className="ml-2 inline-flex items中心 gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-red-50 hover:text-red-600"
                             onClick={() => cartStore.remove(it.id)}
                           >
                             <Trash2 size={14} />
@@ -404,7 +412,13 @@ export default function CheckoutPage() {
               </div>
               <div className="flex justify-between">
                 <span>{t("co.tax", "Tax")}</span>
-                <span>CA$ {taxAmount.toLocaleString()}</span>
+                <span>
+                  CA{"$ "}
+                  {taxAmount.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
               </div>
               <div className="flex justify-between font-semibold text-lg pt-2">
                 <span>{t("cart.total", "Total")}</span>

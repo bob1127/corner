@@ -18,6 +18,15 @@ import HotProductsCarousel from "@/components/HotProductsCarousel";
 import { AnimatePresence, motion } from "framer-motion";
 import { useT } from "@/lib/i18n";
 
+/* ========= 開團時間（America/Vancouver） ========= */
+const GROUP_START_ISO = "2025-10-15T00:00:00-07:00";
+const GROUP_END_ISO = "2025-10-15T23:59:59.999-07:00";
+const GROUP_START_TS = new Date(GROUP_START_ISO).getTime();
+const GROUP_END_TS = new Date(GROUP_END_ISO).getTime();
+function isGroupActive(nowTs = Date.now()) {
+  return nowTs >= GROUP_START_TS && nowTs <= GROUP_END_TS;
+}
+
 /* ---------- helpers ---------- */
 const priceFromStore = (p) =>
   p?.prices?.price ? Number(p.prices.price) / 100 : 0;
@@ -55,6 +64,145 @@ const pickZhName = (p) =>
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "";
 
+/* ========= 置中 & bg-black/50 的雙語 Popup ========= */
+function GroupNoticeModal({ open, onClose }) {
+  const startCn = new Date(GROUP_START_TS).toLocaleString("zh-TW", {
+    timeZone: "America/Vancouver",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const endCn = new Date(GROUP_END_TS).toLocaleString("zh-TW", {
+    timeZone: "America/Vancouver",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const startEn = new Date(GROUP_START_TS).toLocaleString("en-CA", {
+    timeZone: "America/Vancouver",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const endEn = new Date(GROUP_END_TS).toLocaleString("en-CA", {
+    timeZone: "America/Vancouver",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return (
+    <AnimatePresence>
+      {open ? (
+        <div className="fixed inset-0 z-[1000]">
+          {/* 背景遮罩 */}
+          <motion.div
+            key="backdrop"
+            className="absolute inset-0 bg-black/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onClose}
+            aria-hidden="true"
+          />
+          {/* 置中容器 */}
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <motion.div
+              key="modal"
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97, y: 6 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="group-notice-title"
+              className="relative w-[min(560px,95vw)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+            >
+              {/* Header */}
+              <div className="flex items-center gap-3 border-b px-6 py-4">
+                <div className="grid h-9 w-9 place-items-center rounded-full bg-amber-100 text-amber-700">
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M12 9v4m0 4h.01M4.93 19h14.14a2 2 0 0 0 1.73-3l-7.07-12a2 2 0 0 0-3.46 0l-7.07 12a2 2 0 0 0 1.73 3Z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h3
+                    id="group-notice-title"
+                    className="text-lg font-semibold leading-tight"
+                  >
+                    目前無法下單（Group-Buy Closed）
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    請等待下一次開團（Please wait for the next group-buy
+                    window）
+                  </p>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="px-6 py-5 space-y-4">
+                <p className="text-[15px] leading-relaxed text-gray-800">
+                  很抱歉，本商品僅在<b className="mx-1">開團期間</b>
+                  開放下單；目前非開團時段。
+                </p>
+                <p className="text-sm leading-relaxed text-gray-600">
+                  Sorry! Orders are only accepted during the{" "}
+                  <b className="mx-1">group-buy window</b>. It’s currently
+                  closed.
+                </p>
+
+                {/* Time box */}
+                <div className="rounded-xl border bg-amber-50/60 px-4 py-3">
+                  <div className="text-sm font-medium text-gray-900 mb-1">
+                    本次開團時間（America/Vancouver）
+                  </div>
+                  <div className="text-sm font-mono text-gray-800">
+                    {startCn} — {endCn}
+                  </div>
+                  <div className="mt-1 text-xs text-gray-600">
+                    ({startEn} — {endEn})
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-center gap-3 border-t px-6 py-4">
+                <button
+                  onClick={onClose}
+                  className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                >
+                  知道了 / Got it
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
 export default function ProductDetail({
   initialProduct = null,
   buildLocale = null,
@@ -80,6 +228,18 @@ export default function ProductDetail({
   // 加入購物車 Toast 狀態
   const [added, setAdded] = useState(null); // { id, name, img, price, qty }
 
+  // Group-buy 限制 & Modal
+  const [groupActive, setGroupActive] = useState(isGroupActive());
+  const [showGroupModal, setShowGroupModal] = useState(false);
+
+  // 定時刷新 groupActive（避免長時間停留頁面）
+  useEffect(() => {
+    const update = () => setGroupActive(isGroupActive());
+    update();
+    const id = setInterval(update, 30 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
   // ====== 安全傳遞 thumbs（避免 destroyed 狀態觸發錯誤）======
   const thumbsParam = useMemo(() => {
     return thumbsSwiper && !thumbsSwiper.destroyed
@@ -87,7 +247,7 @@ export default function ProductDetail({
       : undefined;
   }, [thumbsSwiper]);
 
-  // 語系或商品變動時，清空舊的 thumbs 實例參考
+  // 語系或商品變動時，清空舊的 thumbs 參考
   useEffect(() => {
     setThumbsSwiper(null);
   }, [router.locale, id]);
@@ -108,8 +268,8 @@ export default function ProductDetail({
       {
         id: payload.id,
         name: payload.name,
-        name_en: payload.name_en, // ✅
-        name_zh: payload.name_zh, // ✅
+        name_en: payload.name_en,
+        name_zh: payload.name_zh,
         img: payload.img,
         price: payload.price,
       },
@@ -200,8 +360,12 @@ export default function ProductDetail({
   const displayName = isCN && zh ? zh : en;
   const prefix = isCN ? "/cn" : "";
 
-  // ✅ 右側加入購物車：帶入雙語
+  // ✅ 主商品加入購物車：非開團期間 → 彈窗；文案不變
   const add = () => {
+    if (!groupActive) {
+      setShowGroupModal(true);
+      return;
+    }
     showAddedToast(
       {
         id: p.id,
@@ -260,10 +424,8 @@ export default function ProductDetail({
             />
           </>
         ) : null}
-        {/* 圖片 CDN 預連線 */}
         <link rel="preconnect" href="https://i0.wp.com" />
         <link rel="dns-prefetch" href="https://i0.wp.com" />
-        {/* JSON-LD */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
@@ -416,7 +578,7 @@ export default function ProductDetail({
           </div>
         )}
 
-        {/* 推薦產品（修正：子層不再直接 add） */}
+        {/* 推薦產品（也受開團限制） */}
         <section className="mt-16">
           <h3 className="text-xl font-bold mb-4">
             {t("pd.other", "You may also like")}
@@ -428,7 +590,14 @@ export default function ProductDetail({
               imagesFromProduct(p)?.[0]?.src || "/images/placeholder.png"
             }
             currentPrice={price}
-            onQuickAdd={(prod) => showAddedToast(prod, 1)}
+            onQuickAdd={(prod) => {
+              if (!groupActive) {
+                setShowGroupModal(true);
+                return;
+              }
+              // 同父層一致：加入購物車 + toast
+              showAddedToast(prod, 1);
+            }}
           />
         </section>
       </main>
@@ -441,11 +610,17 @@ export default function ProductDetail({
         onGoCart={() => router.push("/checkout")}
         t={t}
       />
+
+      {/* 團購限制提示 Modal */}
+      <GroupNoticeModal
+        open={showGroupModal}
+        onClose={() => setShowGroupModal(false)}
+      />
     </Layout>
   );
 }
 
-/* 推薦區（修正：不在子層 add，只回傳 payload 給父層） */
+/* 推薦區（不直接 add，只回傳 payload 給父層） */
 function RelatedCarousel({
   currentId,
   categories,
@@ -475,7 +650,7 @@ function RelatedCarousel({
           img: prod.img,
           price: prod.price,
         };
-        onQuickAdd?.(payload); // 只交給父層處理加入購物車
+        onQuickAdd?.(payload);
       }}
     />
   );
@@ -566,7 +741,7 @@ export async function getStaticPaths() {
   } catch {}
   return {
     paths,
-    fallback: "blocking", // 首訪時即時產生
+    fallback: "blocking",
   };
 }
 
@@ -620,7 +795,7 @@ export async function getStaticProps({ params, locale }) {
 
   return {
     props: { initialProduct: product, buildLocale: locale ?? null },
-    revalidate: 300, // 5 分鐘
+    revalidate: 300,
   };
 }
 

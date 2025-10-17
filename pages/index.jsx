@@ -11,6 +11,15 @@ import Layout from "./Layout";
 import { useT } from "@/lib/i18n";
 import { useRouter } from "next/router";
 
+/* ---- 開團時間（加拿大 Vancouver 時區）---- */
+const GROUP_START_ISO = "2025-10-15T00:00:00-07:00";
+const GROUP_END_ISO = "2025-10-15T23:59:59.999-07:00";
+const GROUP_START_TS = new Date(GROUP_START_ISO).getTime();
+const GROUP_END_TS = new Date(GROUP_END_ISO).getTime();
+function isGroupActive(nowTs = Date.now()) {
+  return nowTs >= GROUP_START_TS && nowTs <= GROUP_END_TS;
+}
+
 /* ---- Read storage method tags from product attributes ---- */
 const storageTagsFromProduct = (p) => {
   if (!p || !Array.isArray(p.attributes)) return [];
@@ -37,8 +46,6 @@ const storageTagsFromProduct = (p) => {
 
 /* ---- Pagination constants ---- */
 const PAGE_SIZE = 15;
-
-/* Generate compact pagination (with ellipsis) */
 function getVisiblePages(current, total) {
   const pages = [];
   if (total <= 7) {
@@ -58,11 +65,154 @@ const pickZhName = (p) =>
 /** 站台絕對網址（給 canonical/hreflang 用） */
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "";
 
+/* ========= 置中 & 重新設計的 Popup ========= */
+function GroupNoticeModal({ open, onClose }) {
+  const startCn = new Date(GROUP_START_TS).toLocaleString("zh-TW", {
+    timeZone: "America/Vancouver",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const endCn = new Date(GROUP_END_TS).toLocaleString("zh-TW", {
+    timeZone: "America/Vancouver",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const startEn = new Date(GROUP_START_TS).toLocaleString("en-CA", {
+    timeZone: "America/Vancouver",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const endEn = new Date(GROUP_END_TS).toLocaleString("en-CA", {
+    timeZone: "America/Vancouver",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return (
+    <AnimatePresence>
+      {open ? (
+        <div className="fixed inset-0 z-[1000]">
+          {/* 背景遮罩：bg-black/50，整頁置中容器 */}
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-black/50"
+            onClick={onClose}
+            aria-hidden="true"
+          />
+          {/* 中央卡片（用 flex 置中） */}
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <motion.div
+              key="modal"
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97, y: 6 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="group-notice-title"
+              className="relative w-[min(560px,95vw)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+            >
+              {/* Header */}
+              <div className="flex items-center gap-3 border-b px-6 py-4">
+                <div className="grid h-9 w-9 place-items-center rounded-full bg-amber-100 text-amber-700">
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M12 9v4m0 4h.01M4.93 19h14.14a2 2 0 0 0 1.73-3l-7.07-12a2 2 0 0 0-3.46 0l-7.07 12a2 2 0 0 0 1.73 3Z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h3
+                    id="group-notice-title"
+                    className="text-lg font-semibold leading-tight"
+                  >
+                    目前無法下單（Group-Buy Closed）
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    請等待下一次開團（Please wait for the next group-buy
+                    window）
+                  </p>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="px-6 py-5 space-y-4">
+                <p className="text-[15px] leading-relaxed text-gray-800">
+                  很抱歉，本商品僅在
+                  <b className="mx-1">「開團期間」</b>
+                  開放下單；目前非開團時段。
+                </p>
+                <p className="text-sm leading-relaxed text-gray-600">
+                  Sorry! Orders are only accepted during the
+                  <b className="mx-1">group-buy window</b>. It’s currently
+                  closed.
+                </p>
+
+                {/* Time box */}
+                <div className="rounded-xl border bg-amber-50/60 px-4 py-3">
+                  <div className="text-sm font-medium text-gray-900 mb-1">
+                    本次開團時間（America/Vancouver）
+                  </div>
+                  <div className="text-sm font-mono text-gray-800">
+                    {startCn} — {endCn}
+                  </div>
+                  <div className="mt-1 text-xs text-gray-600">
+                    ({startEn} — {endEn})
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-center gap-3 border-t px-6 py-4">
+                <button
+                  onClick={onClose}
+                  className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                >
+                  知道了 / Got it
+                </button>
+                {/* 預留 CTA（例如通知我開團） */}
+                {/* <button className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90">
+                  Notify me
+                </button> */}
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
 export default function Home({ initialItems = [], buildLocale = null }) {
   const t = useT();
   const router = useRouter();
 
-  // 是否在中文站 (/cn 或 locale 為 zh/cn)
   const isCN = useMemo(() => {
     const loc = router?.locale || buildLocale || "";
     if (loc && /^(zh|cn)/i.test(loc)) return true;
@@ -70,17 +220,14 @@ export default function Home({ initialItems = [], buildLocale = null }) {
     return p === "/cn" || p.startsWith("/cn/");
   }, [router.locale, router.asPath, buildLocale]);
 
-  // 依語系取得顯示名稱
   const getDisplayName = (p) => {
     const zh = pickZhName(p);
     const en = p?.name || "";
     return isCN && zh ? zh : en;
   };
 
-  // 語系前綴（若有中文子路徑）
   const prefix = isCN ? "/cn" : "";
 
-  // Build localized categories with useMemo so it updates when locale changes
   const CATEGORIES = useMemo(
     () => [
       { name: t("home.cat.all"), slug: "" },
@@ -96,7 +243,6 @@ export default function Home({ initialItems = [], buildLocale = null }) {
     [t]
   );
 
-  // ✅ 初始就帶 SSR/ISR 好的清單
   const [items, setItems] = useState(initialItems);
   const [loading, setLoading] = useState(!initialItems.length);
   const [qtyMap, setQtyMap] = useState(
@@ -104,24 +250,29 @@ export default function Home({ initialItems = [], buildLocale = null }) {
   );
   const [toast, setToast] = useState(null);
 
-  // current category (default shows all)
-  const [activeCat, setActiveCat] = useState("");
+  // Group-buy 狀態與彈窗
+  const [groupActive, setGroupActive] = useState(isGroupActive());
+  const [showGroupModal, setShowGroupModal] = useState(false);
 
-  // pagination
+  useEffect(() => {
+    const update = () => setGroupActive(isGroupActive());
+    update();
+    const id = setInterval(update, 30 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const [activeCat, setActiveCat] = useState("");
   const [page, setPage] = useState(1);
   const gridTopRef = useRef(null);
 
-  // reset to first page when category changes
   useEffect(() => {
     setPage(1);
   }, [activeCat]);
 
-  // scroll to product grid top
   const scrollToGridTop = () => {
     gridTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  // 客端切換分類時抓資料
   useEffect(() => {
     (async () => {
       try {
@@ -147,7 +298,6 @@ export default function Home({ initialItems = [], buildLocale = null }) {
       [id]: Math.max(0, Number.isFinite(+next) ? +next : 0),
     }));
 
-  // Toast
   const toastTimerRef = useRef(null);
   const showToast = (text) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -160,13 +310,16 @@ export default function Home({ initialItems = [], buildLocale = null }) {
     []
   );
 
-  // ✅ 這裡同時把 name_en / name_zh 存進購物車，摘要才能依語系顯示
+  // 加入購物車：非開團期間會跳出彈窗；按鈕文字仍維持原文案
   const addToCart = (p) => {
+    if (!groupActive) {
+      setShowGroupModal(true);
+      return;
+    }
     const q = qtyMap[p.id] ?? 0;
     if (q <= 0) return;
     const priceNumber = p?.prices?.price ? Number(p.prices.price) / 100 : 0;
     const img = p?.images?.[0]?.src || "/images/placeholder.png";
-
     const enName = p?.name || "";
     const zhName = pickZhName(p) || "";
     const displayName = isCN && zhName ? zhName : enName;
@@ -174,9 +327,9 @@ export default function Home({ initialItems = [], buildLocale = null }) {
     cartStore.add(
       {
         id: p.id,
-        name: displayName, // 兼容舊資料
-        name_en: enName, // ✅ 存英文
-        name_zh: zhName, // ✅ 存中文（若無為空字串）
+        name: displayName,
+        name_en: enName,
+        name_zh: zhName,
         img,
         price: priceNumber,
         sku: p.sku || "",
@@ -187,7 +340,6 @@ export default function Home({ initialItems = [], buildLocale = null }) {
     setQty(p.id, 0);
   };
 
-  // pagination slice
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   const safePage = Math.min(Math.max(1, page), totalPages);
   const pageStart = (safePage - 1) * PAGE_SIZE;
@@ -201,7 +353,6 @@ export default function Home({ initialItems = [], buildLocale = null }) {
     }
   };
 
-  // ====== SEO: canonical / hreflang / JSON-LD ======
   const base = SITE_URL.replace(/\/+$/, "");
   const pathPrefix = isCN ? "/cn" : "";
   const canonical = `${base}${pathPrefix || ""}/`;
@@ -229,10 +380,8 @@ export default function Home({ initialItems = [], buildLocale = null }) {
             <link rel="alternate" hrefLang="zh" href={`${base}/cn/`} />
           </>
         ) : null}
-        {/* 圖片 CDN 預連線 */}
         <link rel="preconnect" href="https://i0.wp.com" />
         <link rel="dns-prefetch" href="https://i0.wp.com" />
-        {/* JSON-LD */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
@@ -241,7 +390,7 @@ export default function Home({ initialItems = [], buildLocale = null }) {
 
       <main className="bg-[#f4f1f1] pt-20 sm:pt-0">
         {/* Toast */}
-        <div className="pointer-events-none fixed inset-0 z-[200] flex items-end justify-center">
+        <div className="pointer-events-none fixed inset-0 z-[900] flex items-end justify-center">
           <AnimatePresence mode="wait">
             {toast && (
               <motion.div
@@ -258,8 +407,14 @@ export default function Home({ initialItems = [], buildLocale = null }) {
           </AnimatePresence>
         </div>
 
+        {/* Group Notice Modal */}
+        <GroupNoticeModal
+          open={showGroupModal}
+          onClose={() => setShowGroupModal(false)}
+        />
+
         {/* Banner */}
-        <section className="">
+        <section>
           <Image
             src="/images/2025-10-灶腳-IG-灶腳宅配(1920x768px)-定稿.jpg"
             alt="banner"
@@ -270,9 +425,8 @@ export default function Home({ initialItems = [], buildLocale = null }) {
           />
         </section>
 
-        {/* Tabs (desktop buttons, mobile select) */}
+        {/* Tabs */}
         <div className="mt-8 flex flex-col items-center gap-4">
-          {/* 🔹 Mobile Dropdown */}
           <div className="block sm:hidden w-[80%] max-w-[300px]">
             <select
               value={activeCat}
@@ -287,7 +441,6 @@ export default function Home({ initialItems = [], buildLocale = null }) {
             </select>
           </div>
 
-          {/* 🔹 Desktop Tabs */}
           <div className="hidden sm:flex justify-center gap-3 flex-wrap">
             {CATEGORIES.map((c) => (
               <button
@@ -307,9 +460,7 @@ export default function Home({ initialItems = [], buildLocale = null }) {
 
         {/* Products */}
         <section className="section-content min-h-screen pb-24">
-          {/* scroll anchor */}
           <div ref={gridTopRef} />
-
           {loading ? (
             <div className="text-center py-20 text-gray-500">
               {t("home.loading")}
@@ -346,16 +497,15 @@ export default function Home({ initialItems = [], buildLocale = null }) {
                         key={p.id}
                         className="item relative flex flex-col justify-center items-center group bg-white p-4 border border-gray-100 hover:shadow-md transition"
                       >
-                        {/* 覆蓋整張卡片的 Link（置於最上層） */}
+                        {/* 覆蓋整張卡片的 Link */}
                         <Link
                           href={`${prefix}/product/${p.id}`}
                           aria-label={`${displayName} details`}
                           className="absolute inset-0 z-20"
                         />
 
-                        {/* 內容層（一般資訊：圖片/標題/價格） */}
+                        {/* 內容層 */}
                         <div className="relative z-10 flex flex-col items-center">
-                          {/* 圖片：點擊會被上面的覆蓋層攔截 → 導頁 */}
                           <img
                             src={img}
                             alt={displayName}
@@ -363,7 +513,6 @@ export default function Home({ initialItems = [], buildLocale = null }) {
                             loading="lazy"
                           />
 
-                          {/* Title & Price */}
                           <div className="item-info mt-3 text-center">
                             <b className="line-clamp-2">{displayName}</b>
                             {price !== null && (
@@ -373,7 +522,6 @@ export default function Home({ initialItems = [], buildLocale = null }) {
                             )}
                           </div>
 
-                          {/* Storage tags */}
                           {tags.length > 0 && (
                             <div className="mt-2 flex flex-wrap justify-center gap-2">
                               {tags.map((tLabel, i) => {
@@ -396,13 +544,12 @@ export default function Home({ initialItems = [], buildLocale = null }) {
                           )}
                         </div>
 
-                        {/* 互動區（放在更高層級，能蓋過覆蓋層進行操作） */}
+                        {/* 互動區（阻止覆蓋層攔截） */}
                         <div
                           className="relative z-30 mt-4 flex flex-col items-center gap-3"
                           onClick={(e) => e.stopPropagation()}
                           onMouseDown={(e) => e.stopPropagation()}
                         >
-                          {/* Quantity */}
                           <div className="flex items-center gap-3">
                             <button
                               onClick={() => setQty(p.id, q - 1)}
@@ -436,18 +583,18 @@ export default function Home({ initialItems = [], buildLocale = null }) {
                             </button>
                           </div>
 
-                          {/* Add to cart */}
+                          {/* 按鈕文案維持原樣；非開團時點擊會跳出彈窗 */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               addToCart(p);
                             }}
-                            disabled={q <= 0}
                             className={`rounded-xl px-4 py-2 text-white ${
                               q > 0
                                 ? "bg-[#ca9121] hover:opacity-90"
                                 : "bg-gray-400 cursor-not-allowed"
                             }`}
+                            disabled={q <= 0}
                           >
                             {t("prod.addToCart")}
                           </button>
@@ -508,13 +655,11 @@ export default function Home({ initialItems = [], buildLocale = null }) {
 
         {/* 隱藏 number input 的預設加減箭頭 */}
         <style jsx global>{`
-          /* Chrome / Safari */
           input[type="number"].no-spin::-webkit-outer-spin-button,
           input[type="number"].no-spin::-webkit-inner-spin-button {
             -webkit-appearance: none;
             margin: 0;
           }
-          /* Firefox */
           input[type="number"].no-spin {
             -moz-appearance: textfield;
           }
@@ -532,7 +677,6 @@ export async function getStaticProps({ locale }) {
 
   let initialItems = [];
   try {
-    // 1) 取 Store API
     const storeURL = new URL(`${ensureURL(base)}/wp-json/wc/store/products`);
     storeURL.searchParams.set("per_page", "100");
     const r = await fetch(storeURL.toString(), {
@@ -546,7 +690,6 @@ export async function getStaticProps({ locale }) {
           .slice(0, 100)
       : [];
 
-    // 2) 取 v3 meta_data → 併 zh 名稱
     let metaMap = new Map();
     if (ids.length && ck && cs) {
       const v3 = new URL(`${ensureURL(base)}/wp-json/wc/v3/products`);
@@ -578,13 +721,11 @@ export async function getStaticProps({ locale }) {
           return p;
         })
       : [];
-  } catch (e) {
-    // 靜默失敗，留空陣列
-  }
+  } catch (e) {}
 
   return {
     props: { initialItems, buildLocale: locale ?? null },
-    revalidate: 300, // 5 分鐘
+    revalidate: 300,
   };
 }
 
