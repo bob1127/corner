@@ -12,8 +12,9 @@ import { useT } from "@/lib/i18n";
 import { useRouter } from "next/router";
 
 /* ---- 開團時間（加拿大 Vancouver 時區）---- */
-const GROUP_START_ISO = "2025-10-15T00:00:00-07:00";
-const GROUP_END_ISO = "2025-10-15T23:59:59.999-07:00";
+/** ✅ 新一批團購開放期間：2025/10/29 00:00 ~ 2025/11/04 23:59 (Vancouver time) */
+const GROUP_START_ISO = "2025-10-29T00:00:00-07:00";
+const GROUP_END_ISO = "2025-11-04T23:59:59.999-07:00";
 const GROUP_START_TS = new Date(GROUP_START_ISO).getTime();
 const GROUP_END_TS = new Date(GROUP_END_ISO).getTime();
 function isGroupActive(nowTs = Date.now()) {
@@ -65,46 +66,13 @@ const pickZhName = (p) =>
 /** 站台絕對網址（給 canonical/hreflang 用） */
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "";
 
-/* ========= 置中 & 重新設計的 Popup ========= */
+/* ========= 置中 & 重新設計的 Group Notice Popup ========= */
 function GroupNoticeModal({ open, onClose }) {
-  const startCn = new Date(GROUP_START_TS).toLocaleString("zh-TW", {
-    timeZone: "America/Vancouver",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const endCn = new Date(GROUP_END_TS).toLocaleString("zh-TW", {
-    timeZone: "America/Vancouver",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const startEn = new Date(GROUP_START_TS).toLocaleString("en-CA", {
-    timeZone: "America/Vancouver",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const endEn = new Date(GROUP_END_TS).toLocaleString("en-CA", {
-    timeZone: "America/Vancouver",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
   return (
     <AnimatePresence>
       {open ? (
         <div className="fixed inset-0 z-[1000]">
-          {/* 背景遮罩：bg-black/50，整頁置中容器 */}
+          {/* 背景遮罩 */}
           <motion.div
             key="backdrop"
             initial={{ opacity: 0 }}
@@ -115,7 +83,7 @@ function GroupNoticeModal({ open, onClose }) {
             onClick={onClose}
             aria-hidden="true"
           />
-          {/* 中央卡片（用 flex 置中） */}
+          {/* 中央卡片 */}
           <div className="absolute inset-0 flex items-center justify-center p-4">
             <motion.div
               key="modal"
@@ -174,17 +142,44 @@ function GroupNoticeModal({ open, onClose }) {
                   closed.
                 </p>
 
-                {/* Time box */}
+                {/* 開團時間 */}
                 <div className="rounded-xl border bg-amber-50/60 px-4 py-3">
                   <div className="text-sm font-medium text-gray-900 mb-1">
                     本次開團時間（America/Vancouver）
                   </div>
                   <div className="text-sm font-mono text-gray-800">
-                    {startCn} — {endCn}
+                    2025/10/29 (Wed) 00:00 — 2025/11/04 (Tue) 23:59
                   </div>
                   <div className="mt-1 text-xs text-gray-600">
-                    ({startEn} — {endEn})
+                    Orders open from Oct 29th to Nov 4th, 11:59 PM (Vancouver
+                    time)
                   </div>
+                </div>
+                {/* 配送說明 */}
+                <div className="mt-4 rounded-xl border border-amber-100 bg-white px-4 py-3">
+                  <div className="text-sm font-medium text-gray-900 mb-1">
+                    📦 配送時間說明 / Delivery Information
+                  </div>
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    本次配送將於 <b>11/06（四）與 11/07（五）中午12:00 起</b>{" "}
+                    依區域陸續進行。
+                    <br />
+                    <span className="text-gray-600">
+                      訂單成立後，我們的客服人員會主動與您聯繫，
+                      確認您的地區與確切配送日期，讓您能安心等候收貨。
+                    </span>
+                  </p>
+                  <p className="text-sm text-gray-700 leading-relaxed mt-3 italic">
+                    The delivery will take place on <b>Nov 6 (Thu)</b> and{" "}
+                    <b>Nov 7 (Fri)</b> starting from 12:00 PM, and will be
+                    carried out progressively by area.
+                    <br />
+                    <span className="text-gray-600">
+                      After your order is confirmed, our customer service team
+                      will contact you to confirm your region and exact delivery
+                      date so you can receive your goods with peace of mind.
+                    </span>
+                  </p>
                 </div>
               </div>
 
@@ -196,10 +191,6 @@ function GroupNoticeModal({ open, onClose }) {
                 >
                   知道了 / Got it
                 </button>
-                {/* 預留 CTA（例如通知我開團） */}
-                {/* <button className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90">
-                  Notify me
-                </button> */}
               </div>
             </motion.div>
           </div>
@@ -506,12 +497,15 @@ export default function Home({ initialItems = [], buildLocale = null }) {
 
                         {/* 內容層 */}
                         <div className="relative z-10 flex flex-col items-center">
-                          <img
-                            src={img}
-                            alt={displayName}
-                            className="w-[200px] h-auto transition-transform group-hover:scale-[1.05]"
-                            loading="lazy"
-                          />
+                          <div className="w-full aspect-[4/3] relative overflow-hidden">
+                            <Image
+                              src={img}
+                              alt={displayName}
+                              fill
+                              className="w-full object-cover transition-transform group-hover:scale-[1.05]"
+                              loading="lazy"
+                            />
+                          </div>
 
                           <div className="item-info mt-3 text-center">
                             <b className="line-clamp-2">{displayName}</b>
