@@ -407,7 +407,7 @@ export default function Home({ initialItems = [], buildLocale = null }) {
         {/* Banner */}
         <section>
           <Image
-            src="/images/2025-10-灶腳-IG-灶腳宅配(1920x768px)-定稿.jpg"
+            src="/images/2025-10-灶腳-IG-灶腳宅配(1920x768px)-定稿01.jpg"
             alt="banner"
             width={1920}
             height={768}
