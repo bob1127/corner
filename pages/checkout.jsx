@@ -317,7 +317,7 @@ export default function CheckoutPage() {
               <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2 text-sm">
                 {t(
                   "co.deliveryDates",
-                  "Delivery dates: expected 10/16–10/17; customer service will contact you to confirm the exact date."
+                  "Delivery dates: expected 11/06–11/07; customer service will contact you to confirm the exact date."
                 )}
               </div>
             </section>
