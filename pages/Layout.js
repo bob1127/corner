@@ -44,18 +44,18 @@ export default function RootLayout({ children }) {
     <>
       <Head>
         <title>有香-MemoryCorner｜台灣傳統小吃、台灣美食｜Memory Dining Group - 有香餐飲集團有限公司</title>
-        <meta name="description" content="香餐飲集團2022年正式開放加盟，一起將手作匠心美食推至全北美，用正港台灣料理感動大家的味蕾!" />
+        <meta name="description" content="有香餐飲集團2022年正式開放加盟，一起將手作匠心美食推至全北美，用正港台灣料理感動大家的味蕾!" />
         <meta name="keywords" content="產品, 購物, 優惠" />
         <meta name="author" content="" />
         <link rel="icon" href="/logo.ico" />
-        <meta property="og:title" content="香餐飲集團2022年正式開放加盟，一起將手作匠心美食推至全北美，用正港台灣料理感動大家的味蕾!" />
-        <meta property="og:description" content="香餐飲集團2022年正式開放加盟，一起將手作匠心美食推至全北美，用正港台灣料理感動大家的味蕾!" />
+        <meta property="og:title" content="有香餐飲集團2022年正式開放加盟，一起將手作匠心美食推至全北美，用正港台灣料理感動大家的味蕾!" />
+        <meta property="og:description" content="有香餐飲集團2022年正式開放加盟，一起將手作匠心美食推至全北美，用正港台灣料理感動大家的味蕾!" />
         <meta property="og:image" content="/default-og-image.jpg" />
         <meta property="og:url" content="https://www.starislandbaby.com" />
         <meta property="og:type" content="website" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="香餐飲集團2022年正式開放加盟，一起將手作匠心美食推至全北美，用正港台灣料理感動大家的味蕾!" />
-        <meta name="twitter:description" content="香餐飲集團2022年正式開放加盟，一起將手作匠心美食推至全北美，用正港台灣料理感動大家的味蕾!" />
+        <meta name="twitter:title" content="有香餐飲集團2022年正式開放加盟，一起將手作匠心美食推至全北美，用正港台灣料理感動大家的味蕾!" />
+        <meta name="twitter:description" content="有香餐飲集團2022年正式開放加盟，一起將手作匠心美食推至全北美，用正港台灣料理感動大家的味蕾!" />
         <meta name="twitter:image" content="/default-og-image.jpg" />
       </Head>
 

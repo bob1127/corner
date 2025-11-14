@@ -1,7 +1,7 @@
 // components/SlideTabsExample.jsx
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
@@ -17,10 +17,8 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import { useRouter } from "next/router";
-
 import { cartStore } from "@/lib/cartStore";
 import { authStore } from "@/lib/authStore";
-import { useT } from "@/lib/i18n";
 
 /* -------------------- 動畫 Variants -------------------- */
 const easeOut = [0.22, 1, 0.36, 1];
@@ -82,7 +80,6 @@ const cartPanel = {
     transition: { duration: 0.2, ease: easeOut },
   },
 };
-
 const listItem = {
   initial: { opacity: 0, y: 10 },
   animate: (i) => ({
@@ -133,10 +130,10 @@ function FlyoutLink({ label, href = "#", FlyoutContent }) {
 const BrandStoresContent = () => (
   <ul className="min-w-56 text-sm">
     {[
-      ["關於有香餐飲集團", "/brand01"],
+      ["關於有香餐飲集團", "/main01"],
       ["有香", "/brand01"],
-      ["憶點點", "/brand01"],
-      ["有香ㄟ灶腳", "/brand01"],
+      ["憶點點", "/brand02"],
+      ["有香ㄟ灶腳", "/brand03"],
     ].map(([t, href]) => (
       <li key={t}>
         <Link
@@ -161,7 +158,7 @@ const BrandMenuContent = () => (
       <li key={t}>
         <Link
           href={href}
-          className="block text-base text-black rounded-lg px-3 py-2 hover:text-white hover:bg-[#e09437] transition-colors"
+          className="block text-base text-black rounded-lg px-3 py-2 hover:text白 hover:bg-[#e09437] transition-colors"
         >
           {t}
         </Link>
@@ -170,109 +167,89 @@ const BrandMenuContent = () => (
   </ul>
 );
 
-/* ===== 語系切換（穩定版：整頁重載避免 runtime 錯誤） ===== */
-function LangSwitcher({ scrolled }) {
-  const router = useRouter();
-  const { locale } = router;
-
-  const baseWrap =
-    "flex items-center rounded-full  overflow-hidden border transition-colors";
-  const wrapTheme = scrolled
-    ? "border-black/10 bg-black/5 text-black"
-    : "border-white/20 bg-black/30 text-white";
-
-  const btnBase =
-    "px-3 h-8 grid place-items-center text-[12px] font-medium transition-colors";
-  const activeOnLight = "bg-white text-black";
-  const activeOnDark = "bg-white/20";
-
-  const buildLocaleUrl = (nextLocale) => {
-    const current = router.asPath || "/";
-    const bare = current.replace(/^\/(en|cn)(?=\/|$)/, "");
-    const path = bare.startsWith("/") ? bare : `/${bare}`;
-    return `/${nextLocale}${path}`;
-  };
-
-  const switchLocale = (nextLocale) => {
-    if (nextLocale === locale) return;
-    const url = buildLocaleUrl(nextLocale);
-    // 使用 hard navigation 避免第三方元件卸載時丟例外
-    window.location.assign(url);
-  };
-
-  const btnCls = (isActive) =>
-    `${btnBase} ${
-      isActive ? (scrolled ? activeOnLight : activeOnDark) : "hover:bg-white/10"
-    }`;
+/* ====== 加入購物車成功：右下角 Toast-Popup ====== */
+function AddToCartPopup({ open, item, subtotal, onClose, onCheckout }) {
+  useEffect(() => {
+    if (!open) return;
+    const id = setTimeout(onClose, 2800);
+    return () => clearTimeout(id);
+  }, [open, onClose]);
 
   return (
-    <div className={`${baseWrap} ${wrapTheme}`}>
-      <button
-        type="button"
-        aria-current={locale === "cn" ? "true" : undefined}
-        onClick={() => switchLocale("cn")}
-        className={btnCls(locale === "cn")}
-      >
-        中
-      </button>
-      <button
-        type="button"
-        aria-current={locale === "en" ? "true" : undefined}
-        onClick={() => switchLocale("en")}
-        className={btnCls(locale === "en")}
-      >
-        EN
-      </button>
-    </div>
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          variants={modalCard}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          className="fixed bottom-6 right-6 z-[2100] w-[min(420px,92vw)] rounded-2xl border border-black/10 bg-white/95 shadow-2xl backdrop-blur-md"
+        >
+          <button
+            className="absolute right-3 top-3 rounded-full px-2 py-1 text-gray-500 hover:bg-black/5"
+            onClick={onClose}
+            aria-label="close"
+          >
+            ✕
+          </button>
+          <div className="p-4">
+            <div className="mb-3 flex items-center gap-2 text-base font-semibold">
+              <ShoppingCart size={18} /> 已加入購物車
+            </div>
+            {item && (
+              <div className="flex items-center gap-3">
+                <img
+                  src={item.img}
+                  alt={item.name || ""}
+                  className="h-16 w-16 shrink-0 rounded-lg bg-gray-50 object-contain ring-1 ring-black/5"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="line-clamp-2 text-sm font-medium">
+                    {item.name || ""}
+                  </div>
+                  <div className="mt-1 text-xs text-black/60">
+                    數量：{item.qty || 1}
+                  </div>
+                </div>
+                <div className="text-sm font-semibold">
+                  CA${" "}
+                  {(
+                    Number(item.price || 0) * Number(item.qty || 1)
+                  ).toLocaleString()}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-3 flex items-center justify-between border-t border-dashed border-black/10 pt-3">
+              <span className="text-sm text-black/70">小計</span>
+              <span className="text-lg font-bold">
+                CA$ {Number(subtotal || 0).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                onClick={onCheckout}
+                className="rounded-xl bg-black px-4 py-2.5 text-white hover:opacity-90 active:scale-[0.99] transition"
+              >
+                前往結帳
+              </button>
+              <button
+                onClick={onClose}
+                className="rounded-xl border border-black/15 bg-white px-4 py-2.5 text-black hover:bg-black/5 active:scale-[0.99] transition"
+              >
+                繼續逛逛
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
 export const SlideTabsExample = () => {
   const router = useRouter();
-  const t = useT();
-
-  /* ===== 語系判斷與路徑前綴 ===== */
-  const isCN = useMemo(() => {
-    const loc = router?.locale || "";
-    if (loc && /^(zh|cn)/i.test(loc)) return true;
-    const p = router?.asPath || "";
-    return p === "/cn" || p.startsWith("/cn/");
-  }, [router.locale, router.asPath]);
-
-  const prefix = isCN ? "/cn" : "";
-  const toLocalePath = (path = "/") => `${prefix}${path === "/" ? "" : path}`;
-
-  /* ===== 名稱挑選：依語系顯示 name_zh / name_en，並向後相容 ===== */
-  const itemName = (it) => {
-    const zh = it?.name_zh || it?.zh_name || it?.cn_name;
-    const en = it?.name_en || it?.name;
-    return isCN ? zh || en || it?.name || "" : en || zh || it?.name || "";
-  };
-
-  // === 滾動狀態 + 導覽列高度量測 ===
-  const [scrolled, setScrolled] = useState(false);
-  const headerRef = useRef(null);
-  const [headerH, setHeaderH] = useState(64); // fallback
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  useEffect(() => {
-    const measure = () => {
-      if (headerRef.current) {
-        const h = headerRef.current.getBoundingClientRect().height;
-        setHeaderH(Math.round(h));
-      }
-    };
-    measure();
-    const obs = new ResizeObserver(measure);
-    if (headerRef.current) obs.observe(headerRef.current);
-    return () => obs.disconnect();
-  }, []);
 
   // 手機選單
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -297,9 +274,16 @@ export const SlideTabsExample = () => {
   const [auth, setAuth] = useState(authStore.get());
   const [userOpen, setUserOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState("login"); // login | register
+  const [authMode, setAuthMode] = useState("login");
   const [authLoading, setAuthLoading] = useState(false);
   const [authErr, setAuthErr] = useState("");
+
+  // ✅ 新增：線上點餐彈出框
+  const [showOrderPopup, setShowOrderPopup] = useState(false);
+
+  // ✅ 新增：加入購物車成功提示
+  const [showAdded, setShowAdded] = useState(false);
+  const [addedItem, setAddedItem] = useState(null);
 
   useEffect(() => {
     authStore.init();
@@ -307,42 +291,50 @@ export const SlideTabsExample = () => {
     return unsub;
   }, []);
 
-  // === 鎖定背景捲動（購物車 / 手機選單 / 認證視窗開啟時） ===
-  useEffect(() => {
-    const lock = cartOpen || isMenuOpen || showAuthModal;
-    const original = document.body.style.overflow;
-    if (lock) document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = original;
-    };
-  }, [cartOpen, isMenuOpen, showAuthModal]);
-
-  // 只要購物車打開就強制 navbar 用實心白底
-  const navSolid = scrolled || cartOpen;
+  // 在商品卡片或詳情頁呼叫這個
+  const handleAddToCart = (item) => {
+    // 你的 cartStore.add 可能是 add(id, qty, meta)；這裡用常見結構示例
+    cartStore.add({
+      id: item.id,
+      name: item.name,
+      img: item.img,
+      price: item.price,
+      qty: item.qty || 1,
+    });
+    setAddedItem({
+      ...item,
+      qty: item.qty || 1,
+    });
+    setShowAdded(true);
+  };
 
   return (
     <div>
-      {/* ======= 導覽列：頂部透明、滾動/購物車時變白 ======= */}
+      {/* 手機菜單遮罩 */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            {...modalFade}
+            className="fixed inset-0 z-[900] pointer-events-none"
+          >
+            <div className="w-full h-full bg-black/35 backdrop-blur-sm pointer-events-auto" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.nav
-        key={`navbar-${router.locale}`}
-        ref={headerRef}
+        key="navbar"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: easeOut }}
-        className={[
-          "fixed left-0 top-0 z-[1000] w-full",
-          "transition-[background-color,backdrop-filter,box-shadow,border-color] duration-300",
-          navSolid
-            ? "bg-white/90 supports-[backdrop-filter]:bg-white backdrop-blur shadow-sm border-b border-white/10"
-            : "bg-transparent",
-        ].join(" ")}
+        className="fixed left-0 top-0 z-[1000] bg-white sm:bg-transparent w-full"
       >
-        <div className="mx-auto w-full mt-0 py-2 sm:py-3 px-2">
+        <div className="mx-auto w-full mt-0 sm:mt-5 py-2 sm:py-0 px-2 text-white">
           <div className="flex items-center">
-            {/* 左：手機 Logo 佔位 */}
+            {/* 左：手機 Logo */}
             <div className="w-1/3 md:w-1/3">
-              <div className="md:hidden">
-                <Link href={toLocalePath("/")} aria-label="Home">
+              <div className=" md:hidden">
+                <Link href="/" aria-label="Home">
                   <div className="w-[160px] p-2">
                     <Image
                       src="/images/logo/有香餐飲集團-logo.png"
@@ -358,7 +350,19 @@ export const SlideTabsExample = () => {
 
             {/* 中：桌機選單 */}
             <div className="hidden md:flex w-[60%] lg:w-[80%] items-center justify-center gap-8">
-              <Link href={toLocalePath("/")} aria-label="Home" className="pl-2">
+              <FlyoutLink
+                href="/"
+                label="品牌門店"
+                FlyoutContent={BrandStoresContent}
+              />
+              <FlyoutLink
+                href="/menu"
+                label="品牌菜單"
+                FlyoutContent={BrandMenuContent}
+              />
+
+              {/* 中間 Logo */}
+              <Link href="/" aria-label="Home" className="pl-2">
                 <Image
                   src="/images/logo/有香餐飲集團-logo.png"
                   alt="有香餐飲集團"
@@ -368,35 +372,52 @@ export const SlideTabsExample = () => {
                   className="h-auto w-[190px]"
                 />
               </Link>
+
+              <Link
+                href="/news"
+                className="text-base font-medium text-black/80 hover:text-[#eda240] transition-colors"
+              >
+                品牌動態
+              </Link>
+              <Link
+                href="/participation"
+                className="text-base font-medium text黑/80 hover:text-[#eda240] transition-colors"
+              >
+                加盟合作
+              </Link>
             </div>
 
-            {/* 右：訂購 / 會員 / 語系 / 購物車 / 漢堡 */}
-            <div className="flex w-2/3 md:w-1/3 items-center justify-end pr-0 sm:pr-8 gap-1">
+            {/* 右：訂購 / 會員 / 購物車 / 漢堡 */}
+            <div className="flex w-2/3 md:w-1/3 items-center justify-end gap-3">
+              <Link
+                href="https://corner-rouge.vercel.app/"
+                target="_blank"
+                className="rounded-[30px] hidden sm:block border border-white/30 bg-[#9c2121] px-3 py-1 text-[14px] text-white hover:bg-[#881b1b] transition-colors"
+              >
+                團購商城
+              </Link>
+              <button
+                onClick={() => setShowOrderPopup(true)}
+                className="rounded-[30px] hidden sm:block border border白/30 bg-[#9c2121] px-3 py-1 text-[14px] text-white hover:bg-[#881b1b] transition-colors"
+              >
+                線上點餐
+              </button>
+
               {/* 會員 icon */}
               <div className="relative">
-                {/* <button
+                <button
                   aria-label="user"
                   onClick={() => setUserOpen((v) => !v)}
-                  className={[
-                    "relative grid h-10 w-10 place-items-center rounded-full transition-colors",
-                    navSolid
-                      ? "border border-black/10 bg-black/5 hover:bg-black/10 text-black"
-                      : "border border-white/20 bg-black/30 hover:bg-white/20 text-white",
-                  ].join(" ")}
+                  className="relative grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-black/30 hover:bg-white/20 transition-colors"
                 >
                   <User2 size={18} />
-                </button> */}
+                </button>
 
                 <AnimatePresence>
                   {userOpen && (
                     <motion.div
                       {...fadeUp}
-                      className={[
-                        "absolute right-0 mt-2 w-60 rounded-xl shadow-xl backdrop-blur-md",
-                        navSolid
-                          ? "border border-black/10 bg-white/95 text-black"
-                          : "border border-white/15 bg-black/80 text-white",
-                      ].join(" ")}
+                      className="absolute right-0 mt-2 w-60 rounded-xl border border-white/15 bg黑/80 text-white shadow-xl backdrop-blur-md"
                     >
                       {!auth.user ? (
                         <div className="p-2">
@@ -406,9 +427,9 @@ export const SlideTabsExample = () => {
                               setAuthMode("login");
                               setUserOpen(false);
                             }}
-                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg-white/10 transition-colors"
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg白/10 transition-colors"
                           >
-                            <LogIn size={16} /> {t("user.login")}
+                            <LogIn size={16} /> 登入
                           </button>
                           <button
                             onClick={() => {
@@ -416,25 +437,25 @@ export const SlideTabsExample = () => {
                               setAuthMode("register");
                               setUserOpen(false);
                             }}
-                            className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg-white/10 transition-colors"
+                            className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg白/10 transition-colors"
                           >
-                            <User2 size={16} /> {t("user.register")}
+                            <User2 size={16} /> 註冊
                           </button>
                         </div>
                       ) : (
                         <div className="p-2 text-sm">
                           <div className="px-3 py-2">
-                            Hi,{" "}
+                            嗨，
                             {auth.user.displayName ||
                               auth.user.name ||
                               auth.user.email}
                           </div>
                           <Link
-                            href={toLocalePath("/account")}
-                            className="block rounded-lg px-3 py-2 hover:bg-white/10 transition-colors"
+                            href="/account"
+                            className="block rounded-lg px-3 py-2 hover:bg白/10 transition-colors"
                             onClick={() => setUserOpen(false)}
                           >
-                            {t("user.account")}
+                            我的帳戶 / 訂單
                           </Link>
                           <button
                             onClick={() => {
@@ -443,7 +464,7 @@ export const SlideTabsExample = () => {
                             }}
                             className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-red-200 hover:bg-red-500/10 transition-colors"
                           >
-                            <LogOut size={16} /> {t("user.logout")}
+                            <LogOut size={16} /> 登出
                           </button>
                         </div>
                       )}
@@ -452,19 +473,11 @@ export const SlideTabsExample = () => {
                 </AnimatePresence>
               </div>
 
-              {/* 語系切換（在購物車旁） */}
-              <LangSwitcher scrolled={navSolid} />
-
               {/* 購物車 */}
               <button
                 aria-label="cart"
                 onClick={() => setCartOpen((v) => !v)}
-                className={[
-                  "relative grid h-10 w-10 place-items-center rounded-full transition-colors",
-                  navSolid
-                    ? "border border-black/10 bg-black/5 hover:bg-black/10 text-black"
-                    : "border border-white/20 bg-black/30 hover:bg-white/20 text-white",
-                ].join(" ")}
+                className="relative grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-black/30 hover:bg白/20 transition-colors"
               >
                 <ShoppingCart size={18} />
                 {cartCount > 0 && (
@@ -474,58 +487,102 @@ export const SlideTabsExample = () => {
                 )}
               </button>
 
-              {/* 手機漢堡（如果需要） */}
-              <button
-                aria-label="menu"
-                onClick={() => setIsMenuOpen((v) => !v)}
-                className={[
-                  "ml-1 grid h-10 w-10 place-items-center rounded-full transition-colors md:hidden",
-                  navSolid
-                    ? "border border-black/10 bg-black/5 hover:bg-black/10 text-black"
-                    : "border border-white/20 bg-black/30 hover:bg-white/20 text-white",
-                ].join(" ")}
-              >
-                {isMenuOpen ? <X size={18} /> : <Menu size={18} />}
-              </button>
+              {/* 漢堡（手機） */}
+              <div className="md:hidden pl-1">
+                <button
+                  aria-label="open menu"
+                  className={`grid h-10 w-10 place-items-center rounded-full border transition-colors ${
+                    isMenuOpen
+                      ? "bg-white border-gray-300 shadow-sm"
+                      : "bg白/90 border-gray-300 hover:bg白"
+                  }`}
+                  onClick={() => setIsMenuOpen((v) => !v)}
+                >
+                  {isMenuOpen ? (
+                    <X className="text-gray-700" />
+                  ) : (
+                    <Menu className="text-gray-700" />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </motion.nav>
 
-      {/* ===== 購物車下拉：移出 nav，避免透明態影響 ===== */}
+      {/* ===== 新增：線上點餐自定義 Popup ===== */}
+      <OrderPopup
+        open={showOrderPopup}
+        onClose={() => setShowOrderPopup(false)}
+      >
+        {/* 內容略，沿用你原本的圖片區塊 */}
+        <div className="text-center text-sm text-black/70">
+          這裡放你「線上點餐」的宣傳圖與連結（保留原本程式碼）
+        </div>
+      </OrderPopup>
+
+      {/* ====== Demo：測試加入購物車（實際請移到商品卡片/詳情頁） ====== */}
+      <div className="fixed bottom-6 left-6 z-[5]">
+        <button
+          className="rounded-xl bg-black px-4 py-2 text-white shadow hover:opacity-90"
+          onClick={() =>
+            handleAddToCart({
+              id: "demo-1",
+              name: "示範商品 Demo",
+              img: "/images/online-store/desktop-02.png",
+              price: 120,
+              qty: 1,
+            })
+          }
+        >
+          測試：加入購物車
+        </button>
+      </div>
+
+      {/* ===== 加入購物車成功 Toast ===== */}
+      <AddToCartPopup
+        open={showAdded}
+        item={addedItem}
+        subtotal={subtotal}
+        onClose={() => setShowAdded(false)}
+        onCheckout={() => {
+          setShowAdded(false);
+          setCartOpen(true); // 或 router.push('/checkout')
+        }}
+      />
+
+      {/* ====== 購物車 Drawer ====== */}
       <AnimatePresence>
         {cartOpen && (
           <>
-            {/* 背景遮罩（高於 nav） */}
             <motion.div
               {...cartOverlay}
               className="fixed inset-0 z-[2000] bg-black/35 backdrop-blur-sm"
               onClick={() => setCartOpen(false)}
             />
-            {/* Panel */}
             <motion.section
               variants={cartPanel}
               initial="initial"
               animate="animate"
               exit="exit"
-              className="fixed h-[95vh] overflow-scroll right-4 ml-4 top-4 z-[2010] w-[min(920px,92vw)] rounded-2xl border border-black/10 bg-white/98 shadow-2xl backdrop-blur-md"
+              className="fixed h-[95vh] overflow-scroll right-4 ml-4 top-4 z-[2010] w-[min(920px,92vw)] rounded-2xl border border黑/10 bg-white/98 shadow-2xl backdrop-blur-md"
             >
               {/* Header */}
-              <div className="flex items-center justify-between gap-3 border-b border-black/10 px-5 py-3">
+              <div className="flex items-center justify-between gap-3 border-b border黑/10 px-5 py-3">
                 <div className="flex items-center gap-2 text-lg font-semibold">
                   <ShoppingCart size={18} />
-                  {t("cart.title")}
+                  購物車
                   {cartCount > 0 && (
-                    <span className="ml-1 text-sm font-normal text-black/60">
-                      · {cartCount} {t("cart.items")}
+                    <span className="ml-1 text-sm font-normal text黑/60">
+                      · {cartCount} 件
                     </span>
                   )}
                 </div>
                 <button
-                  className="rounded-full px-3 py-1.5 text-sm text-gray-600 hover:bg-black/5"
+                  className="rounded-full px-3 py-1.5 text-sm text-gray-600 hover:bg黑/5"
                   onClick={() => setCartOpen(false)}
                 >
-                  {t("cart.close")}
+                  關閉
                 </button>
               </div>
 
@@ -546,23 +603,23 @@ export const SlideTabsExample = () => {
                             initial="initial"
                             animate="animate"
                             exit="exit"
-                            className="rounded-xl border border-black/10 bg-white p-3 shadow-sm hover:shadow-md transition-shadow"
+                            className="rounded-xl border border黑/10 bg-white p-3 shadow-sm hover:shadow-md transition-shadow"
                           >
                             <div className="flex items-center gap-3">
                               <img
                                 src={it.img}
-                                alt={itemName(it)}
+                                alt={it.name || ""}
                                 className="h-20 w-20 shrink-0 rounded-lg bg-gray-50 object-contain ring-1 ring-black/5"
                               />
 
                               <div className="min-w-0 flex-1">
                                 <div className="line-clamp-2 text-sm font-medium">
-                                  {itemName(it)}
+                                  {it.name || ""}
                                 </div>
 
                                 <div className="mt-2 flex items-center gap-2">
                                   <button
-                                    className="grid h-7 w-7 place-items-center rounded-lg border border-black/10 hover:bg-black/5 active:scale-95 transition"
+                                    className="grid h-7 w-7 place-items-center rounded-lg border border黑/10 hover:bg黑/5 active:scale-95 transition"
                                     onClick={() =>
                                       cartStore.setQty(
                                         it.id,
@@ -573,7 +630,7 @@ export const SlideTabsExample = () => {
                                     <Minus size={14} />
                                   </button>
                                   <input
-                                    className="h-7 w-12 rounded-lg border border-black/10 text-center text-sm"
+                                    className="h-7 w-12 rounded-lg border border黑/10 text-center text-sm"
                                     value={it.qty}
                                     onChange={(e) =>
                                       cartStore.setQty(
@@ -586,7 +643,7 @@ export const SlideTabsExample = () => {
                                     }
                                   />
                                   <button
-                                    className="grid h-7 w-7 place-items-center rounded-lg border border-black/10 hover:bg-black/5 active:scale-95 transition"
+                                    className="grid h-7 w-7 place-items-center rounded-lg border border黑/10 hover:bg黑/5 active:scale-95 transition"
                                     onClick={() =>
                                       cartStore.setQty(it.id, (it.qty || 1) + 1)
                                     }
@@ -598,7 +655,7 @@ export const SlideTabsExample = () => {
 
                               <div className="flex flex-col items-end gap-2">
                                 <div className="text-sm font-semibold">
-                                  CA{"$ "}
+                                  CA${" "}
                                   {(
                                     Number(it.price || 0) * (it.qty || 0)
                                   ).toLocaleString()}
@@ -608,7 +665,7 @@ export const SlideTabsExample = () => {
                                   onClick={() => cartStore.remove(it.id)}
                                 >
                                   <Trash2 size={14} />
-                                  {t("cart.delete")}
+                                  刪除
                                 </button>
                               </div>
                             </div>
@@ -619,35 +676,27 @@ export const SlideTabsExample = () => {
                   )}
                 </div>
 
-                {/* Summary（已接 i18n） */}
-                <div className="border-t border-black/10 lg:border-l lg:border-t-0">
+                {/* Summary */}
+                <div className="border-t border黑/10 lg:border-l lg:border-t-0">
                   <div className="sticky top-0 px-5 py-4">
-                    <div className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
-                      <div className="text-base font-semibold">
-                        {t("cart.orderSummary")}
-                      </div>
+                    <div className="rounded-xl border border黑/10 bg-white p-4 shadow-sm">
+                      <div className="text-base font-semibold">訂單摘要</div>
 
                       <div className="mt-3 space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-black/70">
-                            {t("cart.subtotal")}
-                          </span>
+                          <span className="text黑/70">小計</span>
                           <span className="font-medium">
                             CA$ {subtotal.toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-black/70">
-                            {t("cart.shipping")}
-                          </span>
-                          <span className="text-black/60">
-                            {t("cart.shipping.calc")}
-                          </span>
+                          <span className="text黑/70">運費</span>
+                          <span className="text黑/60">結帳計算</span>
                         </div>
                       </div>
 
-                      <div className="mt-3 flex items-center justify-between border-t border-dashed border-black/10 pt-3">
-                        <span className="font-semibold">{t("cart.total")}</span>
+                      <div className="mt-3 flex items-center justify-between border-t border-dashed border黑/10 pt-3">
+                        <span className="font-semibold">總計</span>
                         <span className="text-lg font-bold">
                           CA$ {subtotal.toLocaleString()}
                         </span>
@@ -658,17 +707,17 @@ export const SlideTabsExample = () => {
                           className="rounded-xl bg-black px-4 py-3 text-white shadow-sm hover:opacity-90 active:scale-[0.99] transition"
                           onClick={() => {
                             setCartOpen(false);
-                            router.push(toLocalePath("/checkout"));
+                            router.push("/checkout");
                           }}
                           disabled={cart.length === 0}
                         >
-                          {t("cart.goCheckout")} ({cartCount})
+                          前往結帳 ({cartCount})
                         </button>
                         <button
-                          className="rounded-xl border border-black/15 bg-white px-4 py-3 text-black hover:bg-black/5 active:scale-[0.99] transition"
+                          className="rounded-xl border border黑/15 bg-white px-4 py-3 text-black hover:bg黑/5 active:scale-[0.99] transition"
                           onClick={() => setCartOpen(false)}
                         >
-                          {t("cart.continue")}
+                          繼續購物
                         </button>
                       </div>
                     </div>
@@ -680,172 +729,7 @@ export const SlideTabsExample = () => {
         )}
       </AnimatePresence>
 
-      {/* ===== 手機：漢堡選單內容（白底 + 頂部對齊） ===== */}
-      <AnimatePresence>
-        {isMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1, transition: { duration: 0.18 } }}
-              exit={{ opacity: 0, transition: { duration: 0.15 } }}
-              className="fixed inset-0 z-[1900] bg-black/20 backdrop-blur-[2px]"
-              onClick={() => setIsMenuOpen(false)}
-            />
-            <motion.div
-              initial={{ y: -12, opacity: 0 }}
-              animate={{
-                y: 0,
-                opacity: 1,
-                transition: { type: "spring", stiffness: 420, damping: 32 },
-              }}
-              exit={{ y: -12, opacity: 0, transition: { duration: 0.18 } }}
-              style={{ top: headerH }}
-              className="fixed left-0 right-0 z-[1910] overflow-hidden bg-white text-gray-800 shadow-xl border border-gray-200/70"
-            >
-              <div className="flex flex-col gap-2 py-4 px-4">
-                {/* 品牌門店 */}
-                <div className="border-b border-gray-200 pb-2">
-                  <button
-                    className="flex w-full items-center justify-between py-2"
-                    onClick={() => setIsBrandOpenMobile((v) => !v)}
-                  >
-                    <span className="text-base font-medium text-gray-900">
-                      品牌門店
-                    </span>
-                    <motion.span
-                      animate={{ rotate: isBrandOpenMobile ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="inline-block text-gray-600"
-                    >
-                      ▾
-                    </motion.span>
-                  </button>
-
-                  <AnimatePresence initial={false}>
-                    {isBrandOpenMobile && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{
-                          height: "auto",
-                          opacity: 1,
-                          transition: {
-                            type: "spring",
-                            stiffness: 360,
-                            damping: 28,
-                          },
-                        }}
-                        exit={{
-                          height: 0,
-                          opacity: 0,
-                          transition: { duration: 0.16 },
-                        }}
-                        className="pl-3"
-                      >
-                        {[
-                          { label: "有香", href: "/main01" },
-                          { label: "憶點點", href: "/main02" },
-                          { label: "有香ㄟ灶腳", href: "/main03" },
-                        ].map((sub) => (
-                          <Link
-                            key={sub.href}
-                            href={sub.href}
-                            className="block py-2 text-sm text-gray-700 hover:text-black"
-                            onClick={() => setIsMenuOpen(false)}
-                          >
-                            {sub.label}
-                          </Link>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* 品牌菜單 */}
-                <div className="border-b border-gray-200 pb-2">
-                  <button
-                    className="flex w-full items-center justify-between py-2"
-                    onClick={() => setIsMenuOpenMobile((v) => !v)}
-                  >
-                    <span className="text-base font-medium text-gray-900">
-                      品牌菜單
-                    </span>
-                    <motion.span
-                      animate={{ rotate: isMenuOpenMobile ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="inline-block text-gray-600"
-                    >
-                      ▾
-                    </motion.span>
-                  </button>
-
-                  <AnimatePresence initial={false}>
-                    {isMenuOpenMobile && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{
-                          height: "auto",
-                          opacity: 1,
-                          transition: {
-                            type: "spring",
-                            stiffness: 360,
-                            damping: 28,
-                          },
-                        }}
-                        exit={{
-                          height: 0,
-                          opacity: 0,
-                          transition: { duration: 0.16 },
-                        }}
-                        className="pl-3"
-                      >
-                        {[
-                          { label: "有香 菜單", href: "/menu/youxiang" },
-                          { label: "憶點點 菜單", href: "/menu/yidiandian" },
-                          { label: "有香ㄟ灶腳 菜單", href: "/menu/zhao-jiao" },
-                        ].map((sub) => (
-                          <Link
-                            key={sub.href}
-                            href={sub.href}
-                            className="block py-2 text-sm text-gray-700 hover:text-black"
-                            onClick={() => setIsMenuOpen(false)}
-                          >
-                            {sub.label}
-                          </Link>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* 其餘連結 */}
-                {[
-                  { label: "品牌動態", href: "/news" },
-                  { label: "加盟合作", href: "/participation" },
-                ].map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="py-3 text-gray-800 border-b border-gray-200 hover:text-black"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </div>
-              <div className="flex flex-col gap-2 py-4 px-4">
-                <Link
-                  href={toLocalePath("/products")}
-                  className="py-3 text-gray-800 border-b border-gray-200 hover:text-black"
-                >
-                  {t("nav.order")}
-                </Link>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* 登入/註冊 Modal（柔順） */}
+      {/* ===== 登入/註冊 Modal ===== */}
       <AuthModal
         open={showAuthModal}
         mode={authMode}
@@ -878,20 +762,50 @@ export const SlideTabsExample = () => {
 
 export default SlideTabsExample;
 
-/* ====== 空購物車（接 i18n） ====== */
+/* ===== 空購物車 ===== */
 function EmptyCart() {
-  const t = useT();
   return (
-    <div className="grid min-h-[220px] place-items-center rounded-xl border border-dashed border-black/15 bg-gray-50/60 text-center">
+    <div className="grid min-h-[220px] place-items-center rounded-xl border border-dashed border黑/15 bg-gray-50/60 text-center">
       <div>
         <ShoppingCart className="mx-auto mb-2 opacity-50" size={28} />
-        <div className="text-sm text-black/60">{t("cart.noItems")}</div>
+        <div className="text-sm text黑/60">目前沒有商品</div>
       </div>
     </div>
   );
 }
 
-/* ===== 登入/註冊 Modal + 表單（含 fade/scale 動畫） ===== */
+/* ===== 線上點餐自定義 Popup ===== */
+function OrderPopup({ open, onClose, children }) {
+  if (!open) return null;
+  return (
+    <AnimatePresence>
+      <motion.div
+        variants={modalFade}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        className="fixed inset-0 z-[9999999999] grid place-items-center bg-black/50 p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          variants={modalCard}
+          className="relative w-full max-w-[1560px] bg-[#dcdedd] p-6 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className="absolute right-4 top-4 text-gray-500 hover:text-black"
+            onClick={onClose}
+          >
+            ✕
+          </button>
+          <div>{children}</div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+/* ===== 登入/註冊 Modal + 表單 ===== */
 function AuthModal({
   open,
   mode,
@@ -905,7 +819,11 @@ function AuthModal({
   return (
     <AnimatePresence>
       <motion.div
-        variants={modalFade}
+        variants={{
+          initial: { opacity: 0 },
+          animate: { opacity: 1 },
+          exit: { opacity: 0 },
+        }}
         initial="initial"
         animate="animate"
         exit="exit"
@@ -913,13 +831,18 @@ function AuthModal({
         onClick={onClose}
       >
         <motion.div
-          variants={modalCard}
+          variants={{
+            initial: { opacity: 0, scale: 0.9 },
+            animate: { opacity: 1, scale: 1 },
+            exit: { opacity: 0, scale: 0.9 },
+          }}
+          transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
           className="w-full max-w-[420px] rounded-2xl bg-white p-5 text-black shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-lg font-semibold">
-              {mode === "login" ? "Login" : "Register"}
+              {mode === "login" ? "會員登入" : "會員註冊"}
             </h3>
             <button
               className="rounded-full px-2 py-1 text-gray-500 hover:bg-black/5"
@@ -949,6 +872,7 @@ function AuthForm({ mode, onSubmit, loading, error, switchMode }) {
     phone: "",
     name: "",
   });
+
   const onChange = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }));
 
   const nameToFirstLast = (name) => {
@@ -977,7 +901,7 @@ function AuthForm({ mode, onSubmit, loading, error, switchMode }) {
             !f.name.trim() ||
             !f.password
           ) {
-            alert("Please complete: Email, Phone, Name, Password");
+            alert("請完整填寫：Email、手機、姓名、密碼");
             return;
           }
           const { first_name, last_name } = nameToFirstLast(f.name);
@@ -996,17 +920,17 @@ function AuthForm({ mode, onSubmit, loading, error, switchMode }) {
       {mode === "login" ? (
         <>
           <input
-            className="w-full rounded-lg border border-black/15 px-3 py-2"
-            placeholder="Email or phone"
+            className="w-full rounded-lg border border黑/15 px-3 py-2"
+            placeholder="Email 或手機"
             value={f.username}
             onChange={onChange("username")}
             autoComplete="username"
             required
           />
           <input
-            className="w-full rounded-lg border border-black/15 px-3 py-2"
+            className="w-full rounded-lg border border黑/15 px-3 py-2"
             type="password"
-            placeholder="Password"
+            placeholder="密碼"
             value={f.password}
             onChange={onChange("password")}
             autoComplete="current-password"
@@ -1016,18 +940,18 @@ function AuthForm({ mode, onSubmit, loading, error, switchMode }) {
       ) : (
         <>
           <input
-            className="w-full rounded-lg border border-black/15 px-3 py-2"
+            className="w-full rounded-lg border border黑/15 px-3 py-2"
             type="email"
-            placeholder="Email (required)"
+            placeholder="Email（必填）"
             value={f.email}
             onChange={onChange("email")}
             autoComplete="email"
             required
           />
           <input
-            className="w-full rounded-lg border border-black/15 px-3 py-2"
+            className="w-full rounded-lg border border黑/15 px-3 py-2"
             type="tel"
-            placeholder="Phone (required)"
+            placeholder="手機號碼（必填）"
             value={f.phone}
             onChange={onChange("phone")}
             inputMode="tel"
@@ -1035,17 +959,17 @@ function AuthForm({ mode, onSubmit, loading, error, switchMode }) {
             required
           />
           <input
-            className="w-full rounded-lg border border-black/15 px-3 py-2"
-            placeholder="Name (required)"
+            className="w-full rounded-lg border border黑/15 px-3 py-2"
+            placeholder="姓名（必填）"
             value={f.name}
             onChange={onChange("name")}
             autoComplete="name"
             required
           />
           <input
-            className="w-full rounded-lg border border-black/15 px-3 py-2"
+            className="w-full rounded-lg border border黑/15 px-3 py-2"
             type="password"
-            placeholder="Password (required)"
+            placeholder="設定密碼（必填）"
             value={f.password}
             onChange={onChange("password")}
             autoComplete="new-password"
@@ -1068,26 +992,22 @@ function AuthForm({ mode, onSubmit, loading, error, switchMode }) {
         disabled={loading}
         className="w-full rounded-xl bg-black px-4 py-2 text-white shadow-sm hover:opacity-90 active:scale-[0.99] transition disabled:opacity-50"
       >
-        {loading
-          ? "Processing…"
-          : mode === "login"
-          ? "Login"
-          : "Register and Login"}
+        {loading ? "處理中…" : mode === "login" ? "登入" : "註冊並登入"}
       </button>
 
       <div className="text-center text-sm text-gray-600">
         {mode === "login" ? (
           <>
-            No account yet?{" "}
+            還沒有帳號？{" "}
             <button type="button" onClick={switchMode} className="underline">
-              Register
+              前往註冊
             </button>
           </>
         ) : (
           <>
-            Already have an account?{" "}
+            已有帳號？{" "}
             <button type="button" onClick={switchMode} className="underline">
-              Login
+              立即登入
             </button>
           </>
         )}

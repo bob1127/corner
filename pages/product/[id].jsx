@@ -18,9 +18,11 @@ import HotProductsCarousel from "@/components/HotProductsCarousel";
 import { AnimatePresence, motion } from "framer-motion";
 import { useT } from "@/lib/i18n";
 
-/* ========= 開團時間（America/Vancouver） ========= */
-const GROUP_START_ISO = "2025-10-15T00:00:00-07:00";
-const GROUP_END_ISO = "2025-10-15T23:59:59.999-07:00";
+/* ========= 開團時間（America/Vancouver） =========
+   開始：2025-10-29 00:00（PDT, -07:00）
+   結束：2025-11-04 23:59:59.999（PST, -08:00；已考量 11/02 切換） */
+const GROUP_START_ISO = "2025-10-29T00:00:00-07:00";
+const GROUP_END_ISO = "2025-11-04T23:59:59.999-08:00";
 const GROUP_START_TS = new Date(GROUP_START_ISO).getTime();
 const GROUP_END_TS = new Date(GROUP_END_ISO).getTime();
 function isGroupActive(nowTs = Date.now()) {
@@ -66,6 +68,8 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "";
 
 /* ========= 置中 & bg-black/50 的雙語 Popup ========= */
 function GroupNoticeModal({ open, onClose }) {
+  // 供顯示用的簡潔時間字串（固定文案：溫哥華時間 10/29–11/04 11:59pm）
+  // 仍保留程式化格式在小字行，避免未來調整常數時漏改文案。
   const startCn = new Date(GROUP_START_TS).toLocaleString("zh-TW", {
     timeZone: "America/Vancouver",
     year: "numeric",
@@ -162,27 +166,31 @@ function GroupNoticeModal({ open, onClose }) {
 
               {/* Body */}
               <div className="px-6 py-5 space-y-4">
-                <p className="text-[15px] leading-relaxed text-gray-800">
-                  很抱歉，本商品僅在<b className="mx-1">開團期間</b>
-                  開放下單；目前非開團時段。
-                </p>
-                <p className="text-sm leading-relaxed text-gray-600">
-                  Sorry! Orders are only accepted during the{" "}
-                  <b className="mx-1">group-buy window</b>. It’s currently
-                  closed.
-                </p>
-
-                {/* Time box */}
+                {/* 開團時間（更新為 10/29–11/04 11:59pm，America/Vancouver） */}
                 <div className="rounded-xl border bg-amber-50/60 px-4 py-3">
                   <div className="text-sm font-medium text-gray-900 mb-1">
                     本次開團時間（America/Vancouver）
                   </div>
-                  <div className="text-sm font-mono text-gray-800">
-                    {startCn} — {endCn}
+                  <div className="text-sm font-mono text-gray-900">
+                    10/29 00:00 — 11/04 11:59pm
                   </div>
                   <div className="mt-1 text-xs text-gray-600">
-                    ({startEn} — {endEn})
+                    {startCn} — {endCn}（zh） / {startEn} — {endEn}（en）
                   </div>
+                </div>
+
+                {/* 配送時間說明（依需求替換） */}
+                <div className="rounded-xl border bg-white px-4 py-3">
+                  <div className="text-sm font-medium text-gray-900 mb-1">
+                    配送時間說明
+                  </div>
+                  <p className="text-[15px] leading-relaxed text-gray-800">
+                    本次配送將於 <b>11/06（四）</b> 與 <b>11/07（五）</b> 中午
+                    12:00 起依區域陸續進行。
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-gray-700">
+                    註記：訂單成立後，我們的客服人員會主動與您聯繫，確認您的地區與確切配送日期，讓您能安心等候收貨。
+                  </p>
                 </div>
               </div>
 

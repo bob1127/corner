@@ -469,9 +469,9 @@ export default function Home({ initialItems = [], buildLocale = null }) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -50 }}
                   transition={{ duration: 0.45, ease: "easeInOut" }}
-                  className="grid max-w-[1600px] mx-auto w-[92%] grid-cols-1
-                             sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5
-                             gap-6 sm:gap-8 my-12"
+                  className="grid max-w-[1600px] mx-auto w-[92%] grid-cols-2
+           sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5
+           gap-2 sm:gap-8 my-12"
                 >
                   {pageItems.map((p) => {
                     const q = qtyMap[p.id] ?? 0;
@@ -480,6 +480,16 @@ export default function Home({ initialItems = [], buildLocale = null }) {
                     const price = p?.prices?.price
                       ? Number(p.prices.price) / 100
                       : null;
+
+                    const regularPrice = p?.prices?.regular_price
+                      ? Number(p.prices.regular_price) / 100
+                      : null;
+
+                    const hasDiscount =
+                      regularPrice !== null &&
+                      price !== null &&
+                      regularPrice > price;
+
                     const tags = storageTagsFromProduct(p);
                     const displayName = getDisplayName(p);
 
@@ -510,8 +520,15 @@ export default function Home({ initialItems = [], buildLocale = null }) {
                           <div className="item-info mt-3 text-center">
                             <b className="line-clamp-2">{displayName}</b>
                             {price !== null && (
-                              <div className="text-sm text-gray-600">
-                                CA$ {price}
+                              <div className="mt-1 text-sm text-gray-600 flex flex-col items-center justify-center">
+                                {hasDiscount && (
+                                  <span className="text-xs text-gray-400 line-through">
+                                    CA$ {regularPrice.toFixed(2)}
+                                  </span>
+                                )}
+                                <span className="font-semibold text-gray-800">
+                                  CA$ {price.toFixed(2)}
+                                </span>
                               </div>
                             )}
                           </div>
