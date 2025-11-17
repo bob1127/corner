@@ -1,7 +1,7 @@
 // components/SlideTabsExample.jsx
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
@@ -19,6 +19,7 @@ import {
 import { useRouter } from "next/router";
 import { cartStore } from "@/lib/cartStore";
 import { authStore } from "@/lib/authStore";
+import { useT } from "@/lib/i18n";
 
 /* -------------------- 動畫 Variants -------------------- */
 const easeOut = [0.22, 1, 0.36, 1];
@@ -80,6 +81,7 @@ const cartPanel = {
     transition: { duration: 0.2, ease: easeOut },
   },
 };
+
 const listItem = {
   initial: { opacity: 0, y: 10 },
   animate: (i) => ({
@@ -158,7 +160,7 @@ const BrandMenuContent = () => (
       <li key={t}>
         <Link
           href={href}
-          className="block text-base text-black rounded-lg px-3 py-2 hover:text白 hover:bg-[#e09437] transition-colors"
+          className="block text-base text-black rounded-lg px-3 py-2 hover:text-white hover:bg-[#e09437] transition-colors"
         >
           {t}
         </Link>
@@ -169,6 +171,8 @@ const BrandMenuContent = () => (
 
 /* ====== 加入購物車成功：右下角 Toast-Popup ====== */
 function AddToCartPopup({ open, item, subtotal, onClose, onCheckout }) {
+  const t = useT();
+
   useEffect(() => {
     if (!open) return;
     const id = setTimeout(onClose, 2800);
@@ -188,13 +192,13 @@ function AddToCartPopup({ open, item, subtotal, onClose, onCheckout }) {
           <button
             className="absolute right-3 top-3 rounded-full px-2 py-1 text-gray-500 hover:bg-black/5"
             onClick={onClose}
-            aria-label="close"
+            aria-label={t("pd.toast.close", "關閉")}
           >
             ✕
           </button>
           <div className="p-4">
             <div className="mb-3 flex items-center gap-2 text-base font-semibold">
-              <ShoppingCart size={18} /> 已加入購物車
+              <ShoppingCart size={18} /> {t("pd.toast.added", "已加入購物車：")}
             </div>
             {item && (
               <div className="flex items-center gap-3">
@@ -208,7 +212,7 @@ function AddToCartPopup({ open, item, subtotal, onClose, onCheckout }) {
                     {item.name || ""}
                   </div>
                   <div className="mt-1 text-xs text-black/60">
-                    數量：{item.qty || 1}
+                    {t("pd.toast.qty", "數量")}：{item.qty || 1}
                   </div>
                 </div>
                 <div className="text-sm font-semibold">
@@ -221,7 +225,9 @@ function AddToCartPopup({ open, item, subtotal, onClose, onCheckout }) {
             )}
 
             <div className="mt-3 flex items-center justify-between border-t border-dashed border-black/10 pt-3">
-              <span className="text-sm text-black/70">小計</span>
+              <span className="text-sm text-black/70">
+                {t("cart.subtotal", "小計")}
+              </span>
               <span className="text-lg font-bold">
                 CA$ {Number(subtotal || 0).toLocaleString()}
               </span>
@@ -232,13 +238,13 @@ function AddToCartPopup({ open, item, subtotal, onClose, onCheckout }) {
                 onClick={onCheckout}
                 className="rounded-xl bg-black px-4 py-2.5 text-white hover:opacity-90 active:scale-[0.99] transition"
               >
-                前往結帳
+                {t("cart.goCheckout", "前往結帳")}
               </button>
               <button
                 onClick={onClose}
                 className="rounded-xl border border-black/15 bg-white px-4 py-2.5 text-black hover:bg-black/5 active:scale-[0.99] transition"
               >
-                繼續逛逛
+                {t("cart.continue", "繼續購物")}
               </button>
             </div>
           </div>
@@ -250,6 +256,9 @@ function AddToCartPopup({ open, item, subtotal, onClose, onCheckout }) {
 
 export const SlideTabsExample = () => {
   const router = useRouter();
+  const t = useT();
+  const { locale, asPath } = router;
+  const currentLocale = locale ?? "en";
 
   // 手機選單
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -278,10 +287,10 @@ export const SlideTabsExample = () => {
   const [authLoading, setAuthLoading] = useState(false);
   const [authErr, setAuthErr] = useState("");
 
-  // ✅ 新增：線上點餐彈出框
+  // 線上點餐彈出框
   const [showOrderPopup, setShowOrderPopup] = useState(false);
 
-  // ✅ 新增：加入購物車成功提示
+  // 加入購物車成功提示
   const [showAdded, setShowAdded] = useState(false);
   const [addedItem, setAddedItem] = useState(null);
 
@@ -291,9 +300,7 @@ export const SlideTabsExample = () => {
     return unsub;
   }, []);
 
-  // 在商品卡片或詳情頁呼叫這個
   const handleAddToCart = (item) => {
-    // 你的 cartStore.add 可能是 add(id, qty, meta)；這裡用常見結構示例
     cartStore.add({
       id: item.id,
       name: item.name,
@@ -306,6 +313,14 @@ export const SlideTabsExample = () => {
       qty: item.qty || 1,
     });
     setShowAdded(true);
+  };
+
+  const handleLangChange = (nextLocale) => {
+    if (nextLocale === currentLocale) return;
+    router.push(asPath, asPath, {
+      locale: nextLocale,
+      scroll: false,
+    });
   };
 
   return (
@@ -333,7 +348,7 @@ export const SlideTabsExample = () => {
           <div className="flex items-center">
             {/* 左：手機 Logo */}
             <div className="w-1/3 md:w-1/3">
-              <div className=" md:hidden">
+              <div className="md:hidden">
                 <Link href="/" aria-label="Home">
                   <div className="w-[160px] p-2">
                     <Image
@@ -381,27 +396,41 @@ export const SlideTabsExample = () => {
               </Link>
               <Link
                 href="/participation"
-                className="text-base font-medium text黑/80 hover:text-[#eda240] transition-colors"
+                className="text-base font-medium text-black/80 hover:text-[#eda240] transition-colors"
               >
                 加盟合作
               </Link>
             </div>
 
-            {/* 右：訂購 / 會員 / 購物車 / 漢堡 */}
-            <div className="flex w-2/3 md:w-1/3 items-center justify-end gap-3">
-              <Link
-                href="https://corner-rouge.vercel.app/"
-                target="_blank"
-                className="rounded-[30px] hidden sm:block border border-white/30 bg-[#9c2121] px-3 py-1 text-[14px] text-white hover:bg-[#881b1b] transition-colors"
-              >
-                團購商城
-              </Link>
-              <button
-                onClick={() => setShowOrderPopup(true)}
-                className="rounded-[30px] hidden sm:block border border白/30 bg-[#9c2121] px-3 py-1 text-[14px] text-white hover:bg-[#881b1b] transition-colors"
-              >
-                線上點餐
-              </button>
+            {/* 右：訂購 / 語系 / 會員 / 購物車 / 漢堡 */}
+            <div className="flex w-2/3 md:w-1/3 pr-8 items-center justify-end gap-3">
+              {/* 語系切換：中 / EN（桌機） */}
+              <div className="hidden sm:flex items-center">
+                <div className="flex rounded-full bg-black/30 py-1 px-1 text-[12px] p-0.5 border border-white/30">
+                  <button
+                    type="button"
+                    onClick={() => handleLangChange("cn")}
+                    className={`px-2 py-0.5 rounded-full transition-colors ${
+                      currentLocale === "cn"
+                        ? "bg-white text-black"
+                        : "text-white/80 hover:bg-white/10"
+                    }`}
+                  >
+                    CN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLangChange("en")}
+                    className={`px-2 py-0.5 rounded-full transition-colors ${
+                      currentLocale === "en"
+                        ? "bg-white text-black"
+                        : "text-white/80 hover:bg-white/10"
+                    }`}
+                  >
+                    EN
+                  </button>
+                </div>
+              </div>
 
               {/* 會員 icon */}
               <div className="relative">
@@ -417,7 +446,7 @@ export const SlideTabsExample = () => {
                   {userOpen && (
                     <motion.div
                       {...fadeUp}
-                      className="absolute right-0 mt-2 w-60 rounded-xl border border-white/15 bg黑/80 text-white shadow-xl backdrop-blur-md"
+                      className="absolute right-0 mt-2 w-60 rounded-xl border border-white/15 bg-black/80 text-white shadow-xl backdrop-blur-md"
                     >
                       {!auth.user ? (
                         <div className="p-2">
@@ -427,9 +456,9 @@ export const SlideTabsExample = () => {
                               setAuthMode("login");
                               setUserOpen(false);
                             }}
-                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg白/10 transition-colors"
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg-white/10 transition-colors"
                           >
-                            <LogIn size={16} /> 登入
+                            <LogIn size={16} /> {t("user.login", "登入")}
                           </button>
                           <button
                             onClick={() => {
@@ -437,9 +466,9 @@ export const SlideTabsExample = () => {
                               setAuthMode("register");
                               setUserOpen(false);
                             }}
-                            className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg白/10 transition-colors"
+                            className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 hover:bg-white/10 transition-colors"
                           >
-                            <User2 size={16} /> 註冊
+                            <User2 size={16} /> {t("user.register", "註冊")}
                           </button>
                         </div>
                       ) : (
@@ -452,10 +481,10 @@ export const SlideTabsExample = () => {
                           </div>
                           <Link
                             href="/account"
-                            className="block rounded-lg px-3 py-2 hover:bg白/10 transition-colors"
+                            className="block rounded-lg px-3 py-2 hover:bg-white/10 transition-colors"
                             onClick={() => setUserOpen(false)}
                           >
-                            我的帳戶 / 訂單
+                            {t("user.account", "我的帳戶 / 訂單")}
                           </Link>
                           <button
                             onClick={() => {
@@ -464,7 +493,7 @@ export const SlideTabsExample = () => {
                             }}
                             className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-red-200 hover:bg-red-500/10 transition-colors"
                           >
-                            <LogOut size={16} /> 登出
+                            <LogOut size={16} /> {t("user.logout", "登出")}
                           </button>
                         </div>
                       )}
@@ -477,7 +506,7 @@ export const SlideTabsExample = () => {
               <button
                 aria-label="cart"
                 onClick={() => setCartOpen((v) => !v)}
-                className="relative grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-black/30 hover:bg白/20 transition-colors"
+                className="relative grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-black/30 hover:bg-white/20 transition-colors"
               >
                 <ShoppingCart size={18} />
                 {cartCount > 0 && (
@@ -494,7 +523,7 @@ export const SlideTabsExample = () => {
                   className={`grid h-10 w-10 place-items-center rounded-full border transition-colors ${
                     isMenuOpen
                       ? "bg-white border-gray-300 shadow-sm"
-                      : "bg白/90 border-gray-300 hover:bg白"
+                      : "bg-white/90 border-gray-300 hover:bg-white"
                   }`}
                   onClick={() => setIsMenuOpen((v) => !v)}
                 >
@@ -510,36 +539,17 @@ export const SlideTabsExample = () => {
         </div>
       </motion.nav>
 
-      {/* ===== 新增：線上點餐自定義 Popup ===== */}
+      {/* ===== 線上點餐自定義 Popup ===== */}
       <OrderPopup
         open={showOrderPopup}
         onClose={() => setShowOrderPopup(false)}
       >
-        {/* 內容略，沿用你原本的圖片區塊 */}
         <div className="text-center text-sm text-black/70">
           這裡放你「線上點餐」的宣傳圖與連結（保留原本程式碼）
         </div>
       </OrderPopup>
 
-      {/* ====== Demo：測試加入購物車（實際請移到商品卡片/詳情頁） ====== */}
-      <div className="fixed bottom-6 left-6 z-[5]">
-        <button
-          className="rounded-xl bg-black px-4 py-2 text-white shadow hover:opacity-90"
-          onClick={() =>
-            handleAddToCart({
-              id: "demo-1",
-              name: "示範商品 Demo",
-              img: "/images/online-store/desktop-02.png",
-              price: 120,
-              qty: 1,
-            })
-          }
-        >
-          測試：加入購物車
-        </button>
-      </div>
-
-      {/* ===== 加入購物車成功 Toast ===== */}
+      {/* 加入購物車成功 Toast */}
       <AddToCartPopup
         open={showAdded}
         item={addedItem}
@@ -565,24 +575,24 @@ export const SlideTabsExample = () => {
               initial="initial"
               animate="animate"
               exit="exit"
-              className="fixed h-[95vh] overflow-scroll right-4 ml-4 top-4 z-[2010] w-[min(920px,92vw)] rounded-2xl border border黑/10 bg-white/98 shadow-2xl backdrop-blur-md"
+              className="fixed h-[95vh] overflow-scroll right-4 ml-4 top-4 z-[2010] w-[min(920px,92vw)] rounded-2xl border border-black/10 bg-white/98 shadow-2xl backdrop-blur-md"
             >
               {/* Header */}
-              <div className="flex items-center justify-between gap-3 border-b border黑/10 px-5 py-3">
+              <div className="flex items-center justify-between gap-3 border-b border-black/10 px-5 py-3">
                 <div className="flex items-center gap-2 text-lg font-semibold">
                   <ShoppingCart size={18} />
-                  購物車
+                  {t("cart.title", "購物車")}
                   {cartCount > 0 && (
-                    <span className="ml-1 text-sm font-normal text黑/60">
-                      · {cartCount} 件
+                    <span className="ml-1 text-sm font-normal text-black/60">
+                      · {cartCount} {t("cart.items", "件")}
                     </span>
                   )}
                 </div>
                 <button
-                  className="rounded-full px-3 py-1.5 text-sm text-gray-600 hover:bg黑/5"
+                  className="rounded-full px-3 py-1.5 text-sm text-gray-600 hover:bg-black/5"
                   onClick={() => setCartOpen(false)}
                 >
-                  關閉
+                  {t("cart.close", "關閉")}
                 </button>
               </div>
 
@@ -603,7 +613,7 @@ export const SlideTabsExample = () => {
                             initial="initial"
                             animate="animate"
                             exit="exit"
-                            className="rounded-xl border border黑/10 bg-white p-3 shadow-sm hover:shadow-md transition-shadow"
+                            className="rounded-xl border border-black/10 bg-white p-3 shadow-sm hover:shadow-md transition-shadow"
                           >
                             <div className="flex items-center gap-3">
                               <img
@@ -619,7 +629,7 @@ export const SlideTabsExample = () => {
 
                                 <div className="mt-2 flex items-center gap-2">
                                   <button
-                                    className="grid h-7 w-7 place-items-center rounded-lg border border黑/10 hover:bg黑/5 active:scale-95 transition"
+                                    className="grid h-7 w-7 place-items-center rounded-lg border border-black/10 hover:bg-black/5 active:scale-95 transition"
                                     onClick={() =>
                                       cartStore.setQty(
                                         it.id,
@@ -630,7 +640,7 @@ export const SlideTabsExample = () => {
                                     <Minus size={14} />
                                   </button>
                                   <input
-                                    className="h-7 w-12 rounded-lg border border黑/10 text-center text-sm"
+                                    className="h-7 w-12 rounded-lg border border-black/10 text-center text-sm"
                                     value={it.qty}
                                     onChange={(e) =>
                                       cartStore.setQty(
@@ -643,7 +653,7 @@ export const SlideTabsExample = () => {
                                     }
                                   />
                                   <button
-                                    className="grid h-7 w-7 place-items-center rounded-lg border border黑/10 hover:bg黑/5 active:scale-95 transition"
+                                    className="grid h-7 w-7 place-items-center rounded-lg border border-black/10 hover:bg-black/5 active:scale-95 transition"
                                     onClick={() =>
                                       cartStore.setQty(it.id, (it.qty || 1) + 1)
                                     }
@@ -665,7 +675,7 @@ export const SlideTabsExample = () => {
                                   onClick={() => cartStore.remove(it.id)}
                                 >
                                   <Trash2 size={14} />
-                                  刪除
+                                  {t("cart.delete", "移除")}
                                 </button>
                               </div>
                             </div>
@@ -677,26 +687,36 @@ export const SlideTabsExample = () => {
                 </div>
 
                 {/* Summary */}
-                <div className="border-t border黑/10 lg:border-l lg:border-t-0">
+                <div className="border-t border-black/10 lg:border-l lg:border-t-0">
                   <div className="sticky top-0 px-5 py-4">
-                    <div className="rounded-xl border border黑/10 bg-white p-4 shadow-sm">
-                      <div className="text-base font-semibold">訂單摘要</div>
+                    <div className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+                      <div className="text-base font-semibold">
+                        {t("cart.orderSummary", "訂單摘要")}
+                      </div>
 
                       <div className="mt-3 space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text黑/70">小計</span>
+                          <span className="text-black/70">
+                            {t("cart.subtotal", "小計")}
+                          </span>
                           <span className="font-medium">
                             CA$ {subtotal.toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text黑/70">運費</span>
-                          <span className="text黑/60">結帳計算</span>
+                          <span className="text-black/70">
+                            {t("cart.shipping", "運費")}
+                          </span>
+                          <span className="text-black/60">
+                            {t("cart.shipping.calc", "結帳計算")}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="mt-3 flex items-center justify-between border-t border-dashed border黑/10 pt-3">
-                        <span className="font-semibold">總計</span>
+                      <div className="mt-3 flex items-center justify-between border-t border-dashed border-black/10 pt-3">
+                        <span className="font-semibold">
+                          {t("cart.total", "總計")}
+                        </span>
                         <span className="text-lg font-bold">
                           CA$ {subtotal.toLocaleString()}
                         </span>
@@ -711,13 +731,13 @@ export const SlideTabsExample = () => {
                           }}
                           disabled={cart.length === 0}
                         >
-                          前往結帳 ({cartCount})
+                          {t("cart.goCheckout", "前往結帳")} ({cartCount})
                         </button>
                         <button
-                          className="rounded-xl border border黑/15 bg-white px-4 py-3 text-black hover:bg黑/5 active:scale-[0.99] transition"
+                          className="rounded-xl border border-black/15 bg-white px-4 py-3 text-black hover:bg-black/5 active:scale-[0.99] transition"
                           onClick={() => setCartOpen(false)}
                         >
-                          繼續購物
+                          {t("cart.continue", "繼續購物")}
                         </button>
                       </div>
                     </div>
@@ -764,11 +784,14 @@ export default SlideTabsExample;
 
 /* ===== 空購物車 ===== */
 function EmptyCart() {
+  const t = useT();
   return (
-    <div className="grid min-h-[220px] place-items-center rounded-xl border border-dashed border黑/15 bg-gray-50/60 text-center">
+    <div className="grid min-h-[220px] place-items-center rounded-xl border border-dashed border-black/15 bg-gray-50/60 text-center">
       <div>
         <ShoppingCart className="mx-auto mb-2 opacity-50" size={28} />
-        <div className="text-sm text黑/60">目前沒有商品</div>
+        <div className="text-sm text-black/60">
+          {t("cart.noItems", "目前沒有商品")}
+        </div>
       </div>
     </div>
   );
@@ -920,7 +943,7 @@ function AuthForm({ mode, onSubmit, loading, error, switchMode }) {
       {mode === "login" ? (
         <>
           <input
-            className="w-full rounded-lg border border黑/15 px-3 py-2"
+            className="w-full rounded-lg border border-black/15 px-3 py-2"
             placeholder="Email 或手機"
             value={f.username}
             onChange={onChange("username")}
@@ -928,7 +951,7 @@ function AuthForm({ mode, onSubmit, loading, error, switchMode }) {
             required
           />
           <input
-            className="w-full rounded-lg border border黑/15 px-3 py-2"
+            className="w-full rounded-lg border border-black/15 px-3 py-2"
             type="password"
             placeholder="密碼"
             value={f.password}
@@ -940,7 +963,7 @@ function AuthForm({ mode, onSubmit, loading, error, switchMode }) {
       ) : (
         <>
           <input
-            className="w-full rounded-lg border border黑/15 px-3 py-2"
+            className="w-full rounded-lg border border-black/15 px-3 py-2"
             type="email"
             placeholder="Email（必填）"
             value={f.email}
@@ -949,7 +972,7 @@ function AuthForm({ mode, onSubmit, loading, error, switchMode }) {
             required
           />
           <input
-            className="w-full rounded-lg border border黑/15 px-3 py-2"
+            className="w-full rounded-lg border border-black/15 px-3 py-2"
             type="tel"
             placeholder="手機號碼（必填）"
             value={f.phone}
@@ -959,7 +982,7 @@ function AuthForm({ mode, onSubmit, loading, error, switchMode }) {
             required
           />
           <input
-            className="w-full rounded-lg border border黑/15 px-3 py-2"
+            className="w-full rounded-lg border border-black/15 px-3 py-2"
             placeholder="姓名（必填）"
             value={f.name}
             onChange={onChange("name")}
@@ -967,7 +990,7 @@ function AuthForm({ mode, onSubmit, loading, error, switchMode }) {
             required
           />
           <input
-            className="w-full rounded-lg border border黑/15 px-3 py-2"
+            className="w-full rounded-lg border border-black/15 px-3 py-2"
             type="password"
             placeholder="設定密碼（必填）"
             value={f.password}
