@@ -200,6 +200,17 @@ function GroupNoticeModal({ open, onClose }) {
   );
 }
 
+/* ---- beer 判斷（前端/SSG 共用）---- */
+function isBeerProduct(p) {
+  const cats = p?.categories;
+  if (!Array.isArray(cats)) return false;
+  return cats.some((c) => {
+    const slug = String(c?.slug || "").toLowerCase();
+    const name = String(c?.name || "").toLowerCase();
+    return slug === "beer" || name === "beer";
+  });
+}
+
 export default function Home({ initialItems = [], buildLocale = null }) {
   const t = useT();
   const router = useRouter();
@@ -274,8 +285,9 @@ export default function Home({ initialItems = [], buildLocale = null }) {
         const r = await fetch(url);
         const data = await r.json();
         const arr = Array.isArray(data) ? data : [];
-        setItems(arr);
-        const init = Object.fromEntries(arr.map((p) => [p.id, 1]));
+        const filteredArr = arr.filter((p) => !isBeerProduct(p)); // ✅ 排除 beer
+        setItems(filteredArr);
+        const init = Object.fromEntries(filteredArr.map((p) => [p.id, 1]));
         setQtyMap(init);
       } finally {
         setLoading(false);
@@ -507,12 +519,12 @@ export default function Home({ initialItems = [], buildLocale = null }) {
 
                         {/* 內容層 */}
                         <div className="relative z-10 flex flex-col items-center">
-                          <div className="w-full aspect-[4/3] relative overflow-hidden">
+                          <div className="w-full aspect-[4/3] relative overflow-hidden bg-white">
                             <Image
                               src={img}
                               alt={displayName}
                               fill
-                              className="w-full object-cover transition-transform group-hover:scale-[1.05]"
+                              className="w-full object-contain transition-transform group-hover:scale-[1.05]"
                               loading="lazy"
                             />
                           </div>
@@ -693,7 +705,10 @@ export async function getStaticProps({ locale }) {
     const r = await fetch(storeURL.toString(), {
       headers: { Accept: "application/json" },
     });
-    const list = (await r.json()) || [];
+    const rawList = (await r.json()) || [];
+    const list = Array.isArray(rawList)
+      ? rawList.filter((p) => !isBeerProduct(p)) // ✅ 排除 beer
+      : [];
     const ids = Array.isArray(list)
       ? list
           .map((p) => p.id)
