@@ -9,6 +9,12 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, message: "WC_URL 未設定" });
   }
 
+  // 讀取目前語系（預設 en）
+  const acceptLang =
+    req.headers["accept-language"] ||
+    req.headers["Accept-Language"] ||
+    "en";
+
   // 10 秒時間桶，避開上游快取
   const tsBucket = Math.floor(Date.now() / 10000);
 
@@ -20,15 +26,22 @@ export default async function handler(req, res) {
   url.searchParams.set("_t", String(tsBucket));
 
   try {
+    // ✅ 轉發 Accept-Language 給 Store API
     const r = await fetch(url.toString(), {
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        "Accept-Language": acceptLang,
+      },
     });
+
     const storeData = await r.json();
     const list = Array.isArray(storeData) ? storeData : [];
 
-    // 若沒有商品，直接回傳（照樣設置快取 header）
     setCacheHeaders(res);
-    if (list.length === 0) return res.status(r.status).json(storeData);
+
+    if (list.length === 0) {
+      return res.status(r.status).json(storeData);
+    }
 
     // 取目前頁面的商品 id 陣列（Woo v3 include 最多 100 筆）
     const ids = list.map((p) => p.id).filter(Boolean).slice(0, 100);
@@ -47,6 +60,7 @@ export default async function handler(req, res) {
           Authorization: basicAuth(ck, cs),
         },
       });
+
       if (vr.ok) {
         const v3data = await vr.json();
         for (const it of Array.isArray(v3data) ? v3data : []) {
@@ -55,18 +69,22 @@ export default async function handler(req, res) {
       }
     }
 
-    // 把 zh_product_name 併到 extensions.custom_acf
     const merged = list.map((p) => {
       const meta = metaMap.get(p.id) || [];
       const cn = pickCnName(meta);
+
       if (!p.extensions) p.extensions = {};
       if (!p.extensions.custom_acf) p.extensions.custom_acf = {};
       p.extensions.custom_acf.cn_name = cn;
       p.extensions.custom_acf.zh_product_name = cn;
+
+      // ✅ 明確提供雙語欄位，前端統一吃這個
+      p.name_en = p.name_en || p.name || "";
+      p.name_zh = p.name_zh || cn || "";
+
       return p;
     });
 
-    setCacheHeaders(res);
     return res.status(r.status).json(merged);
   } catch (e) {
     return res.status(500).json({ ok: false, message: String(e) });
@@ -83,13 +101,16 @@ function basicAuth(ck, cs) {
   return "Basic " + Buffer.from(`${ck}:${cs}`).toString("base64");
 }
 
+// ✅ 記得 vary 語系，不然 CDN 會拿錯語言版本
 function setCacheHeaders(res) {
-  res.setHeader("Cache-Control", "public, s-maxage=10, stale-while-revalidate=59");
-  res.setHeader("Vary", "Accept");
+  res.setHeader(
+    "Cache-Control",
+    "public, s-maxage=10, stale-while-revalidate=59"
+  );
+  res.setHeader("Vary", "Accept-Language");
 }
 
 function pickCnName(meta = []) {
-  // 依序嘗試這些 key
   const keys = [
     "zh_product_name",
     "cn_name",

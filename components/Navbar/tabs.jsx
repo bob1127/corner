@@ -1,7 +1,7 @@
 // components/SlideTabsExample.jsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
@@ -170,7 +170,14 @@ const BrandMenuContent = () => (
 );
 
 /* ====== 加入購物車成功：右下角 Toast-Popup ====== */
-function AddToCartPopup({ open, item, subtotal, onClose, onCheckout }) {
+function AddToCartPopup({
+  open,
+  item,
+  subtotal,
+  onClose,
+  onCheckout,
+  getName,
+}) {
   const t = useT();
 
   useEffect(() => {
@@ -178,6 +185,8 @@ function AddToCartPopup({ open, item, subtotal, onClose, onCheckout }) {
     const id = setTimeout(onClose, 2800);
     return () => clearTimeout(id);
   }, [open, onClose]);
+
+  const displayName = item ? getName?.(item) || item.name || "" : "";
 
   return (
     <AnimatePresence>
@@ -204,12 +213,12 @@ function AddToCartPopup({ open, item, subtotal, onClose, onCheckout }) {
               <div className="flex items-center gap-3">
                 <img
                   src={item.img}
-                  alt={item.name || ""}
+                  alt={displayName}
                   className="h-16 w-16 shrink-0 rounded-lg bg-gray-50 object-contain ring-1 ring-black/5"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="line-clamp-2 text-sm font-medium">
-                    {item.name || ""}
+                    {displayName}
                   </div>
                   <div className="mt-1 text-xs text-black/60">
                     {t("pd.toast.qty", "數量")}：{item.qty || 1}
@@ -260,6 +269,26 @@ export const SlideTabsExample = () => {
   const { locale, asPath } = router;
   const currentLocale = locale ?? "en";
 
+  /* ===== 語系判斷（跟 checkout 同邏輯） ===== */
+  const isCN = useMemo(() => {
+    const loc = router?.locale || "";
+    if (loc && /^(zh|cn)/i.test(loc)) return true;
+    const p = router?.asPath || "";
+    return p === "/cn" || p.startsWith("/cn/");
+  }, [router.locale, router.asPath]);
+
+  /* ===== 名稱挑選（依語系 + 後相容） ===== */
+  const itemName = (it) => {
+    const zh =
+      it?.name_zh ||
+      it?.zh_name ||
+      it?.cn_name ||
+      it?.extensions?.custom_acf?.zh_product_name ||
+      "";
+    const en = it?.name_en || it?.name || "";
+    return isCN ? zh || en : en || zh;
+  };
+
   // 手機選單
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isBrandOpenMobile, setIsBrandOpenMobile] = useState(false);
@@ -300,16 +329,25 @@ export const SlideTabsExample = () => {
     return unsub;
   }, []);
 
+  // ✅ 加入購物車時，存雙語欄位
   const handleAddToCart = (item) => {
-    cartStore.add({
+    const payload = {
       id: item.id,
-      name: item.name,
+      name: item.name, // 當下語系顯示名
+      name_en: item.name_en || item.name || "",
+      name_zh:
+        item.name_zh ||
+        item.extensions?.custom_acf?.zh_product_name ||
+        item.extensions?.custom_acf?.cn_name ||
+        "",
       img: item.img,
       price: item.price,
-      qty: item.qty || 1,
-    });
+    };
+
+    cartStore.add(payload, item.qty || 1);
+
     setAddedItem({
-      ...item,
+      ...payload,
       qty: item.qty || 1,
     });
     setShowAdded(true);
@@ -413,7 +451,7 @@ export const SlideTabsExample = () => {
                     className={`px-2 py-0.5 rounded-full transition-colors ${
                       currentLocale === "cn"
                         ? "bg-white text-black"
-                        : "text-white/80 hover:bg-white/10"
+                        : "text-white/80 hover:bg白/10"
                     }`}
                   >
                     CN
@@ -559,6 +597,7 @@ export const SlideTabsExample = () => {
           setShowAdded(false);
           setCartOpen(true); // 或 router.push('/checkout')
         }}
+        getName={itemName}
       />
 
       {/* ====== 購物車 Drawer ====== */}
@@ -605,82 +644,88 @@ export const SlideTabsExample = () => {
                   ) : (
                     <ul className="space-y-3">
                       <AnimatePresence initial={false}>
-                        {cart.map((it, i) => (
-                          <motion.li
-                            key={it.id}
-                            custom={i}
-                            variants={listItem}
-                            initial="initial"
-                            animate="animate"
-                            exit="exit"
-                            className="rounded-xl border border-black/10 bg-white p-3 shadow-sm hover:shadow-md transition-shadow"
-                          >
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={it.img}
-                                alt={it.name || ""}
-                                className="h-20 w-20 shrink-0 rounded-lg bg-gray-50 object-contain ring-1 ring-black/5"
-                              />
+                        {cart.map((it, i) => {
+                          const name = itemName(it);
+                          return (
+                            <motion.li
+                              key={it.id}
+                              custom={i}
+                              variants={listItem}
+                              initial="initial"
+                              animate="animate"
+                              exit="exit"
+                              className="rounded-xl border border-black/10 bg-white p-3 shadow-sm hover:shadow-md transition-shadow"
+                            >
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={it.img}
+                                  alt={name}
+                                  className="h-20 w-20 shrink-0 rounded-lg bg-gray-50 object-contain ring-1 ring-black/5"
+                                />
 
-                              <div className="min-w-0 flex-1">
-                                <div className="line-clamp-2 text-sm font-medium">
-                                  {it.name || ""}
-                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="line-clamp-2 text-sm font-medium">
+                                    {name}
+                                  </div>
 
-                                <div className="mt-2 flex items-center gap-2">
-                                  <button
-                                    className="grid h-7 w-7 place-items-center rounded-lg border border-black/10 hover:bg-black/5 active:scale-95 transition"
-                                    onClick={() =>
-                                      cartStore.setQty(
-                                        it.id,
-                                        Math.max(1, (it.qty || 1) - 1)
-                                      )
-                                    }
-                                  >
-                                    <Minus size={14} />
-                                  </button>
-                                  <input
-                                    className="h-7 w-12 rounded-lg border border-black/10 text-center text-sm"
-                                    value={it.qty}
-                                    onChange={(e) =>
-                                      cartStore.setQty(
-                                        it.id,
-                                        Math.max(
-                                          1,
-                                          parseInt(e.target.value || "1", 10)
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <button
+                                      className="grid h-7 w-7 place-items-center rounded-lg border border-black/10 hover:bg-black/5 active:scale-95 transition"
+                                      onClick={() =>
+                                        cartStore.setQty(
+                                          it.id,
+                                          Math.max(1, (it.qty || 1) - 1)
                                         )
-                                      )
-                                    }
-                                  />
+                                      }
+                                    >
+                                      <Minus size={14} />
+                                    </button>
+                                    <input
+                                      className="h-7 w-12 rounded-lg border border-black/10 text-center text-sm"
+                                      value={it.qty}
+                                      onChange={(e) =>
+                                        cartStore.setQty(
+                                          it.id,
+                                          Math.max(
+                                            1,
+                                            parseInt(e.target.value || "1", 10)
+                                          )
+                                        )
+                                      }
+                                    />
+                                    <button
+                                      className="grid h-7 w-7 place-items-center rounded-lg border border-black/10 hover:bg-black/5 active:scale-95 transition"
+                                      onClick={() =>
+                                        cartStore.setQty(
+                                          it.id,
+                                          (it.qty || 1) + 1
+                                        )
+                                      }
+                                    >
+                                      <Plus size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end gap-2">
+                                  <div className="text-sm font-semibold">
+                                    CA${" "}
+                                    {(
+                                      Number(it.price || 0) * (it.qty || 0)
+                                    ).toLocaleString()}
+                                  </div>
                                   <button
-                                    className="grid h-7 w-7 place-items-center rounded-lg border border-black/10 hover:bg-black/5 active:scale-95 transition"
-                                    onClick={() =>
-                                      cartStore.setQty(it.id, (it.qty || 1) + 1)
-                                    }
+                                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-red-50 hover:text-red-600 active:scale-95 transition"
+                                    onClick={() => cartStore.remove(it.id)}
                                   >
-                                    <Plus size={14} />
+                                    <Trash2 size={14} />
+                                    {t("cart.delete", "移除")}
                                   </button>
                                 </div>
                               </div>
-
-                              <div className="flex flex-col items-end gap-2">
-                                <div className="text-sm font-semibold">
-                                  CA${" "}
-                                  {(
-                                    Number(it.price || 0) * (it.qty || 0)
-                                  ).toLocaleString()}
-                                </div>
-                                <button
-                                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-red-50 hover:text-red-600 active:scale-95 transition"
-                                  onClick={() => cartStore.remove(it.id)}
-                                >
-                                  <Trash2 size={14} />
-                                  {t("cart.delete", "移除")}
-                                </button>
-                              </div>
-                            </div>
-                          </motion.li>
-                        ))}
+                            </motion.li>
+                          );
+                        })}
                       </AnimatePresence>
                     </ul>
                   )}

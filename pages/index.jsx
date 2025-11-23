@@ -12,9 +12,9 @@ import { useT } from "@/lib/i18n";
 import { useRouter } from "next/router";
 
 /* ---- 開團時間（加拿大 Vancouver 時區）---- */
-/** ✅ 新一批團購開放期間：2025/10/29 00:00 ~ 2025/11/04 23:59 (Vancouver time) */
-const GROUP_START_ISO = "2025-10-29T00:00:00-07:00";
-const GROUP_END_ISO = "2025-11-04T23:59:59.999-07:00";
+/** ✅ 新一批團購開放期間：2025/11/22 00:00 ~ 2025/11/26 01:00 (Vancouver time) */
+const GROUP_START_ISO = "2025-11-22T00:00:00-08:00";
+const GROUP_END_ISO = "2025-11-26T01:00:00.000-08:00";
 const GROUP_START_TS = new Date(GROUP_START_ISO).getTime();
 const GROUP_END_TS = new Date(GROUP_END_ISO).getTime();
 function isGroupActive(nowTs = Date.now()) {
@@ -148,10 +148,10 @@ function GroupNoticeModal({ open, onClose }) {
                     本次開團時間（America/Vancouver）
                   </div>
                   <div className="text-sm font-mono text-gray-800">
-                    2025/10/29 (Wed) 00:00 — 2025/11/04 (Tue) 23:59
+                    2025/11/22 (Sat) 00:00 — 2025/11/26 (Wed) 01:00
                   </div>
                   <div className="mt-1 text-xs text-gray-600">
-                    Orders open from Oct 29th to Nov 4th, 11:59 PM (Vancouver
+                    Orders open from Nov 22nd to Nov 26th, 1:00 AM (Vancouver
                     time)
                   </div>
                 </div>
@@ -518,13 +518,14 @@ export default function Home({ initialItems = [], buildLocale = null }) {
                         />
 
                         {/* 內容層 */}
-                        <div className="relative z-10 flex flex-col items-center">
+                        <div className="relative z-10 w-full flex flex-col items-center">
                           <div className="w-full aspect-[4/3] relative overflow-hidden bg-white">
                             <Image
                               src={img}
                               alt={displayName}
                               fill
-                              className="w-full object-contain transition-transform group-hover:scale-[1.05]"
+                              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                              className="object-contain p-2 transition-transform group-hover:scale-[1.05]"
                               loading="lazy"
                             />
                           </div>

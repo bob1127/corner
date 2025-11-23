@@ -31,20 +31,30 @@ export default function HotProductsCarousel({
     return path === "/cn" || path.startsWith("/cn/");
   }, [router.locale, router.asPath]);
 
-  // ── Embla: smooth feel (has inertia but still snaps)
-  const autoplay = useRef(
-    Autoplay({ delay: 3000, stopOnInteraction: false, stopOnMouseEnter: true })
-  );
-  const [emblaRef, emblaApi] = useEmblaCarousel(
-    {
+  /* ✅ Embla options memoized to avoid re-init flicker on parent rerender */
+  const emblaOptions = useMemo(
+    () => ({
       loop: true,
       align: "start",
       dragFree: true,
       containScroll: "trimSnaps",
       duration: 30,
-    },
-    [autoplay.current]
+    }),
+    []
   );
+
+  // ── Embla autoplay plugin (stable)
+  const autoplay = useRef(
+    Autoplay({
+      delay: 3000,
+      stopOnInteraction: true, // ✅ interaction stops autoplay → less jump
+      stopOnMouseEnter: true,
+    })
+  );
+
+  const [emblaRef, emblaApi] = useEmblaCarousel(emblaOptions, [
+    autoplay.current,
+  ]);
 
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
@@ -53,22 +63,41 @@ export default function HotProductsCarousel({
   useEffect(() => {
     if (presetItems?.length) return;
     let aborted = false;
+
     (async () => {
       try {
         setLoading(true);
         setErr("");
+
         const qs = new URLSearchParams();
         if (perPage) qs.set("per_page", String(perPage));
         if (categoryIds?.length) qs.set("categories", categoryIds.join(","));
+
         const r = await fetch(`${apiPath}?${qs.toString()}`, {
           cache: "no-store",
         });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
         const json = await r.json();
         const arr = Array.isArray(json) ? json : json?.data || [];
         if (!Array.isArray(arr)) throw new Error("Invalid API response");
 
         let list = excludeId ? arr.filter((x) => x.id !== excludeId) : arr;
+
+        /* ✅ 1) 排除 beer 分類商品（支援 slug / name） */
+        list = list.filter((p) => {
+          const cats = Array.isArray(p?.categories) ? p.categories : [];
+          return !cats.some((c) => {
+            const slug = String(c?.slug || "").toLowerCase();
+            const name = String(c?.name || "").toLowerCase();
+            return (
+              slug === "beer" ||
+              name === "beer" ||
+              slug.includes("beer") ||
+              name.includes("beer")
+            );
+          });
+        });
 
         // 含指定分類優先
         if (categoryIds?.length) {
@@ -98,6 +127,7 @@ export default function HotProductsCarousel({
           img: x?.images?.[0]?.src || "/images/placeholder.png",
           leftNote: "SEASONAL",
           rightNote: "CRAFT LAGER",
+          categories: x.categories || [],
         }));
 
         if (!mapped.length && fallbackItem) mapped = [fallbackItem];
@@ -108,6 +138,7 @@ export default function HotProductsCarousel({
         if (!aborted) setLoading(false);
       }
     })();
+
     return () => {
       aborted = true;
     };
@@ -147,10 +178,13 @@ export default function HotProductsCarousel({
   // 語系前綴（若你是用路徑分流 /cn）
   const prefix = isCN ? "/cn" : "";
 
-  // 統一處理加入購物車：傳回雙語名稱，避免父層收到只有單語名稱
+  // 統一處理加入購物車：傳回雙語名稱（避免父層收到只有單語）
   const handleAdd = useCallback(
-    (item) => {
+    (item, e) => {
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
       if (!onAdd) return;
+
       const payload = {
         id: item.id,
         name: item.name, // 畫面顯示名（依語系）
@@ -171,6 +205,7 @@ export default function HotProductsCarousel({
         {t("pd.loadFail", "Load failed")}: {err}
       </div>
     );
+
   if (!loading && !viewData.length)
     return (
       <div className="text-gray-500">
@@ -235,8 +270,9 @@ export default function HotProductsCarousel({
                       className="object-contain transition-transform duration-300 group-hover:-translate-y-1"
                     />
 
+                    {/* ✅ click add: prevent link/drag bubbling → no flicker */}
                     <button
-                      onClick={() => handleAdd(p)}
+                      onClick={(e) => handleAdd(p, e)}
                       aria-label={t("prod.addToCart", "Add to Cart")}
                       className="absolute bottom-[18%] right-[12%] size-9 sm:size-10 rounded-full bg-white text-black shadow ring-1 ring-black/10 grid place-items-center hover:bg-black hover:text-white transition"
                     >
@@ -261,7 +297,7 @@ export default function HotProductsCarousel({
                         {t("home.details", "View")}
                       </Link>
                       <button
-                        onClick={() => handleAdd(p)}
+                        onClick={(e) => handleAdd(p, e)}
                         className="flex-1 rounded-full bg-black text-white py-2 text-xs hover:opacity-90 transition"
                       >
                         {t("prod.addToCart", "Add to Cart")}

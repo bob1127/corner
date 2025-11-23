@@ -21,8 +21,8 @@ import { useT } from "@/lib/i18n";
 /* ========= 開團時間（America/Vancouver） =========
    開始：2025-10-29 00:00（PDT, -07:00）
    結束：2025-11-04 23:59:59.999（PST, -08:00；已考量 11/02 切換） */
-const GROUP_START_ISO = "2025-10-29T00:00:00-07:00";
-const GROUP_END_ISO = "2025-11-04T23:59:59.999-08:00";
+const GROUP_START_ISO = "2025-11-22T00:00:00-08:00";
+const GROUP_END_ISO = "2025-11-26T01:00:00-08:00";
 const GROUP_START_TS = new Date(GROUP_START_ISO).getTime();
 const GROUP_END_TS = new Date(GROUP_END_ISO).getTime();
 function isGroupActive(nowTs = Date.now()) {
@@ -172,8 +172,9 @@ function GroupNoticeModal({ open, onClose }) {
                     本次開團時間（America/Vancouver）
                   </div>
                   <div className="text-sm font-mono text-gray-900">
-                    10/29 00:00 — 11/04 11:59pm
+                    11/22 00:00 — 11/26 01:00am
                   </div>
+
                   <div className="mt-1 text-xs text-gray-600">
                     {startCn} — {endCn}（zh） / {startEn} — {endEn}（en）
                   </div>
