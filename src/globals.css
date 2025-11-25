@@ -1147,3 +1147,29 @@ img {
     @apply bg-background text-foreground;
   }
 }
+/* 定義一個自訂 class，例如 .thin-scrollbar */
+
+/* Chrome, Edge, Safari (Webkit 內核) */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 6px; /* 寬度設為 6px，預設通常是 17px */
+  height: 6px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* 軌道透明 */
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2); /* 滾動條顏色：半透明黑 */
+  border-radius: 10px; /* 圓角 */
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.4); /* 滑鼠移上去時變深一點 */
+}
+
+/* Firefox */
+.thin-scrollbar {
+  scrollbar-width: thin; /* 設為細 */
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}

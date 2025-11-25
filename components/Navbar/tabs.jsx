@@ -614,7 +614,7 @@ export const SlideTabsExample = () => {
               initial="initial"
               animate="animate"
               exit="exit"
-              className="fixed h-[95vh] overflow-scroll right-4 ml-4 top-4 z-[2010] w-[min(920px,92vw)] rounded-2xl border border-black/10 bg-white/98 shadow-2xl backdrop-blur-md"
+              className="thin-scrollbar fixed h-[95vh] overflow-y-auto right-4 ml-4 top-4 z-[2010] w-[min(920px,92vw)] rounded-2xl border border-black/10 bg-white/98 shadow-2xl backdrop-blur-md"
             >
               {/* Header */}
               <div className="flex items-center justify-between gap-3 border-b border-black/10 px-5 py-3">
@@ -638,7 +638,7 @@ export const SlideTabsExample = () => {
               {/* Body */}
               <div className="grid grid-cols-1 lg:grid-cols-3">
                 {/* Items */}
-                <div className="lg:col-span-2 max-h-[58vh] overflow-y-auto px-5 py-4">
+                <div className="lg:col-span-2  h-full overflow-y-auto px-5 py-4">
                   {cart.length === 0 ? (
                     <EmptyCart />
                   ) : (
