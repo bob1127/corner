@@ -161,7 +161,7 @@ function GroupNoticeModal({ open, onClose }) {
                     📦 配送時間說明 / Delivery Information
                   </div>
                   <p className="text-sm text-gray-700 leading-relaxed">
-                    本次配送將於 <b>11/06（四）與 11/07（五）中午12:00 起</b>{" "}
+                    本次配送將於 <b>11/27（四）與 11/28（五）中午12:00 起</b>{" "}
                     依區域陸續進行。
                     <br />
                     <span className="text-gray-600">
@@ -169,6 +169,7 @@ function GroupNoticeModal({ open, onClose }) {
                       確認您的地區與確切配送日期，讓您能安心等候收貨。
                     </span>
                   </p>
+
                   <p className="text-sm text-gray-700 leading-relaxed mt-3 italic">
                     The delivery will take place on <b>Nov 6 (Thu)</b> and{" "}
                     <b>Nov 7 (Fri)</b> starting from 12:00 PM, and will be

@@ -317,7 +317,7 @@ export default function CheckoutPage() {
               <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2 text-sm">
                 {t(
                   "co.deliveryDates",
-                  "暫定出貨日期為 11/26 之後 (Estimated shipping starts after 11/26); customer service will contact you to confirm the exact date."
+                  "預計出貨日期 11/27–11/28 (Estimated shipping date: 11/27–11/28)"
                 )}
               </div>
             </section>
