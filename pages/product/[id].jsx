@@ -18,16 +18,58 @@ import HotProductsCarousel from "@/components/HotProductsCarousel";
 import { AnimatePresence, motion } from "framer-motion";
 import { useT } from "@/lib/i18n";
 
-/* ========= 開團時間（America/Vancouver） =========
-   開始：2025-10-29 00:00（PDT, -07:00）
-   結束：2025-11-04 23:59:59.999（PST, -08:00；已考量 11/02 切換） */
-const GROUP_START_ISO = "2025-11-22T00:00:00-08:00";
-const GROUP_END_ISO = "2025-11-26T01:00:00-08:00";
-const GROUP_START_TS = new Date(GROUP_START_ISO).getTime();
-const GROUP_END_TS = new Date(GROUP_END_ISO).getTime();
-function isGroupActive(nowTs = Date.now()) {
-  return nowTs >= GROUP_START_TS && nowTs <= GROUP_END_TS;
+/* =========================================================
+   HELPER FUNCTIONS: 時間與排程計算
+   ========================================================= */
+
+/** 檢查當前時間是否落在某個時段內 */
+function getActivePeriod(periods = []) {
+  if (!Array.isArray(periods) || periods.length === 0) return null;
+  const now = Date.now();
+  return periods.find((p) => {
+    const start = new Date(p.start).getTime();
+    const end = new Date(p.end).getTime();
+    return now >= start && now <= end;
+  });
 }
+
+/** 找出下一個即將開始的時段 (用於顯示預告) */
+function getNextPeriod(periods = []) {
+  if (!Array.isArray(periods) || periods.length === 0) return null;
+  const now = Date.now();
+  const upcoming = periods
+    .filter((p) => new Date(p.start).getTime() > now)
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  return upcoming[0] || null;
+}
+
+/** 格式化日期顯示 (強制鎖定為溫哥華時間，格式 YYYY/MM/DD HH:mm) */
+const formatTimeDisplay = (isoString) => {
+  if (!isoString) return "TBA";
+  try {
+    const date = new Date(isoString);
+
+    // 強制指定 timeZone: 'America/Vancouver'，避免瀏覽器轉成當地時區
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Vancouver",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false, // 24小時制
+    });
+
+    const parts = formatter.formatToParts(date);
+    const getPart = (type) => parts.find((p) => p.type === type)?.value;
+
+    return `${getPart("year")}/${getPart("month")}/${getPart("day")} ${getPart(
+      "hour"
+    )}:${getPart("minute")}`;
+  } catch (e) {
+    return isoString;
+  }
+};
 
 /* ---------- helpers ---------- */
 const priceFromStore = (p) =>
@@ -66,42 +108,19 @@ const pickZhName = (p) =>
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "";
 
-/* ========= 置中 & bg-black/50 的雙語 Popup ========= */
-function GroupNoticeModal({ open, onClose }) {
-  // 供顯示用的簡潔時間字串（固定文案：溫哥華時間 10/29–11/04 11:59pm）
-  // 仍保留程式化格式在小字行，避免未來調整常數時漏改文案。
-  const startCn = new Date(GROUP_START_TS).toLocaleString("zh-TW", {
-    timeZone: "America/Vancouver",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const endCn = new Date(GROUP_END_TS).toLocaleString("zh-TW", {
-    timeZone: "America/Vancouver",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const startEn = new Date(GROUP_START_TS).toLocaleString("en-CA", {
-    timeZone: "America/Vancouver",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const endEn = new Date(GROUP_END_TS).toLocaleString("en-CA", {
-    timeZone: "America/Vancouver",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+/* ========= 置中 & bg-black/50 的雙語 Popup (動態版) ========= */
+function GroupNoticeModal({ open, onClose, nextPeriod }) {
+  const info = nextPeriod || {
+    start: null,
+    end: null,
+    delivery_zh: "待定 (TBA)",
+    delivery_en: "To be announced",
+  };
+
+  const timeRange =
+    info.start && info.end
+      ? `${formatTimeDisplay(info.start)} — ${formatTimeDisplay(info.end)}`
+      : "Coming Soon";
 
   return (
     <AnimatePresence>
@@ -166,31 +185,44 @@ function GroupNoticeModal({ open, onClose }) {
 
               {/* Body */}
               <div className="px-6 py-5 space-y-4">
-                {/* 開團時間（更新為 10/29–11/04 11:59pm，America/Vancouver） */}
-                <div className="rounded-xl border bg-amber-50/60 px-4 py-3">
+                {/* 中文提示 */}
+                <p className="text-[15px] leading-relaxed text-gray-800">
+                  很抱歉，本商品僅在
+                  <b className="mx-1">「開團期間」</b>
+                  開放下單；目前非開團時段。
+                </p>
+
+                {/* 英文提示 */}
+                <p className="text-sm leading-relaxed text-gray-600 mt-1">
+                  Sorry! Orders are only accepted during the
+                  <b className="mx-1">group-buy window</b>. It’s currently
+                  closed.
+                </p>
+
+                {/* 開團時間 */}
+                <div className="rounded-xl border bg-amber-50/60 px-4 py-3 mt-4">
                   <div className="text-sm font-medium text-gray-900 mb-1">
-                    本次開團時間（America/Vancouver）
+                    📅 下一次開團時間 (Next Group Buy)
                   </div>
                   <div className="text-sm font-mono text-gray-900">
-                    11/22 00:00 — 11/26 01:00am
+                    {timeRange}
                   </div>
 
                   <div className="mt-1 text-xs text-gray-600">
-                    {startCn} — {endCn}（zh） / {startEn} — {endEn}（en）
+                    (Vancouver Time)
                   </div>
                 </div>
 
-                {/* 配送時間說明（依需求替換） */}
-                <div className="rounded-xl border bg-white px-4 py-3">
+                {/* 配送時間說明 */}
+                <div className="rounded-xl border bg-white px-4 py-3 mt-4">
                   <div className="text-sm font-medium text-gray-900 mb-1">
-                    配送時間說明
+                    📦 預計配送說明 / Delivery Info
                   </div>
                   <p className="text-[15px] leading-relaxed text-gray-800">
-                    本次配送將於 <b>11/06（四）</b> 與 <b>11/07（五）</b> 中午
-                    12:00 起依區域陸續進行。
+                    {info.delivery_zh || "確認中..."}
                   </p>
-                  <p className="mt-2 text-sm leading-relaxed text-gray-700">
-                    註記：訂單成立後，我們的客服人員會主動與您聯繫，確認您的地區與確切配送日期，讓您能安心等候收貨。
+                  <p className="mt-2 text-sm leading-relaxed text-gray-700 italic">
+                    {info.delivery_en || "TBA"}
                   </p>
                 </div>
               </div>
@@ -215,6 +247,7 @@ function GroupNoticeModal({ open, onClose }) {
 export default function ProductDetail({
   initialProduct = null,
   buildLocale = null,
+  periods = [],
 }) {
   const router = useRouter();
   const t = useT();
@@ -235,39 +268,41 @@ export default function ProductDetail({
   const [thumbsSwiper, setThumbsSwiper] = useState(null);
 
   // 加入購物車 Toast 狀態
-  const [added, setAdded] = useState(null); // { id, name, img, price, qty }
+  const [added, setAdded] = useState(null);
 
   // Group-buy 限制 & Modal
-  const [groupActive, setGroupActive] = useState(isGroupActive());
+  const [activePeriod, setActivePeriod] = useState(null);
+  const [nextPeriod, setNextPeriod] = useState(null);
   const [showGroupModal, setShowGroupModal] = useState(false);
 
-  // 定時刷新 groupActive（避免長時間停留頁面）
+  // 定時刷新 groupActive
   useEffect(() => {
-    const update = () => setGroupActive(isGroupActive());
-    update();
-    const id = setInterval(update, 30 * 1000);
+    const checkTime = () => {
+      setActivePeriod(getActivePeriod(periods));
+      setNextPeriod(getNextPeriod(periods));
+    };
+    checkTime();
+    const id = setInterval(checkTime, 30 * 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [periods]);
 
-  // ====== 安全傳遞 thumbs（避免 destroyed 狀態觸發錯誤）======
+  // ====== 安全傳遞 thumbs ======
   const thumbsParam = useMemo(() => {
     return thumbsSwiper && !thumbsSwiper.destroyed
       ? { swiper: thumbsSwiper }
       : undefined;
   }, [thumbsSwiper]);
 
-  // 語系或商品變動時，清空舊的 thumbs 參考
   useEffect(() => {
     setThumbsSwiper(null);
   }, [router.locale, id]);
 
-  // ✅ 加入購物車 + 顯示自訂彈窗（同時存中英文名稱）
   const showAddedToast = useCallback((prod, count = 1) => {
     const payload = {
       id: prod.id,
-      name: prod.name, // 依當前語系顯示名
-      name_en: prod.name_en || "", // 也存英文
-      name_zh: prod.name_zh || "", // 也存中文
+      name: prod.name,
+      name_en: prod.name_en || "",
+      name_zh: prod.name_zh || "",
       price: prod.price ?? priceFromStore(prod),
       img: prod.img ?? prod?.images?.[0]?.src ?? "/images/placeholder.png",
       qty: Math.max(1, count),
@@ -288,14 +323,12 @@ export default function ProductDetail({
     setAdded(payload);
   }, []);
 
-  // 自動關閉彈窗
   useEffect(() => {
     if (!added) return;
     const tmr = setTimeout(() => setAdded(null), 3000);
     return () => clearTimeout(tmr);
   }, [added]);
 
-  // 取單品（若有 SSR 初始資料就不再抓）
   useEffect(() => {
     if (!router.isReady || initialProduct) return;
     let aborted = false;
@@ -308,13 +341,11 @@ export default function ProductDetail({
         const pid = router.query.id;
         const headers = { "Accept-Language": router.locale || "en" };
 
-        // 1) /api/store/products/:id
         let res = await fetch(`/api/store/products/${pid}`, { headers });
         let data;
         if (res.ok) {
           data = await res.json();
         } else {
-          // 2) /api/store/products?id=:id
           const res2 = await fetch(`/api/store/products?id=${pid}`, {
             headers,
           });
@@ -369,9 +400,9 @@ export default function ProductDetail({
   const displayName = isCN && zh ? zh : en;
   const prefix = isCN ? "/cn" : "";
 
-  // ✅ 主商品加入購物車：非開團期間 → 彈窗；文案不變
+  // ✅ 主商品加入購物車：非開團期間 → 彈窗
   const add = () => {
-    if (!groupActive) {
+    if (!activePeriod) {
       setShowGroupModal(true);
       return;
     }
@@ -388,7 +419,6 @@ export default function ProductDetail({
     );
   };
 
-  // ====== SEO：canonical / hreflang / Product JSON-LD ======
   const base = SITE_URL.replace(/\/+$/, "");
   const canonical = SITE_URL ? `${base}${prefix}/product/${p.id}` : undefined;
 
@@ -441,7 +471,6 @@ export default function ProductDetail({
         />
       </Head>
 
-      {/* 修正 Swiper 高度 */}
       <style jsx global>{`
         .product-swiper,
         .product-swiper .swiper-wrapper,
@@ -513,13 +542,12 @@ export default function ProductDetail({
             </div>
           </div>
 
-          {/* 右：內容（顯示 displayName） */}
+          {/* 右：內容 */}
           <div className="flex pl-0 sm:pl-10 items-start pt-0 sm:pt-20">
             <div className="right-info w-full">
               <h1 className="text-2xl font-bold mb-2">{displayName}</h1>
               <div className="text-xl mb-2">CA$ {price}</div>
 
-              {/* 保存方式 */}
               {storageTags.length > 0 && (
                 <div className="mb-4 flex flex-wrap gap-2">
                   {storageTags.map((t, i) => {
@@ -599,12 +627,12 @@ export default function ProductDetail({
               imagesFromProduct(p)?.[0]?.src || "/images/placeholder.png"
             }
             currentPrice={price}
+            activePeriod={activePeriod} // 傳入是否開團
             onQuickAdd={(prod) => {
-              if (!groupActive) {
+              if (!activePeriod) {
                 setShowGroupModal(true);
                 return;
               }
-              // 同父層一致：加入購物車 + toast
               showAddedToast(prod, 1);
             }}
           />
@@ -624,12 +652,13 @@ export default function ProductDetail({
       <GroupNoticeModal
         open={showGroupModal}
         onClose={() => setShowGroupModal(false)}
+        nextPeriod={nextPeriod}
       />
     </Layout>
   );
 }
 
-/* 推薦區（不直接 add，只回傳 payload 給父層） */
+/* 推薦區 */
 function RelatedCarousel({
   currentId,
   categories,
@@ -763,6 +792,8 @@ export async function getStaticProps({ params, locale }) {
   if (!id) return { notFound: true };
 
   let product = null;
+  let periods = [];
+
   try {
     // ① Store API 取單品
     const r = await fetch(
@@ -775,7 +806,7 @@ export async function getStaticProps({ params, locale }) {
     if (!r.ok || !data?.id) throw new Error("Product not found");
     product = data;
 
-    // ② 解析保存方式 terms 名稱（若 options 是 ID）
+    // ② 解析保存方式
     product = await resolveStorageAttributeForSingle(base, product, ck, cs);
 
     // ③ 追加 v3 meta_data → 併入 zh 名
@@ -798,17 +829,32 @@ export async function getStaticProps({ params, locale }) {
         product.extensions.custom_acf.zh_product_name = cn;
       }
     }
+
+    // ④ 抓取排程設定
+    try {
+      const apiUrl = `${ensureURL(base)}/wp-json/custom/v1/group-buy`;
+      const timeRes = await fetch(apiUrl);
+      if (timeRes.ok) {
+        periods = await timeRes.json();
+      }
+    } catch (err) {
+      console.error("Failed to fetch group-buy settings:", err);
+    }
   } catch {
     return { notFound: true, revalidate: 60 };
   }
 
   return {
-    props: { initialProduct: product, buildLocale: locale ?? null },
+    props: {
+      initialProduct: product,
+      buildLocale: locale ?? null,
+      periods, // ✅ 傳入排程資料
+    },
     revalidate: 300,
   };
 }
 
-/* ---- helpers (SSR 用；與你的 API 同邏輯) ---- */
+/* ---- helpers (SSR 用) ---- */
 function ensureURL(u = "") {
   return String(u).replace(/\/+$/, "");
 }
