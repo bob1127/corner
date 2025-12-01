@@ -387,7 +387,7 @@ export const SlideTabsExample = () => {
             {/* 左：手機 Logo */}
             <div className="w-1/3 md:w-1/3">
               <div className="md:hidden">
-                <Link href="/" aria-label="Home">
+                <Link href="https://memory-ozgp.vercel.app" aria-label="Home">
                   <div className="w-[160px] p-2">
                     <Image
                       src="/images/logo/有香餐飲集團-logo.png"
@@ -415,7 +415,11 @@ export const SlideTabsExample = () => {
               />
 
               {/* 中間 Logo */}
-              <Link href="/" aria-label="Home" className="pl-2">
+              <Link
+                href="https://memory-ozgp.vercel.app"
+                aria-label="Home"
+                className="pl-2"
+              >
                 <Image
                   src="/images/logo/有香餐飲集團-logo.png"
                   alt="有香餐飲集團"
