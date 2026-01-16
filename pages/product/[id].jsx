@@ -4,6 +4,7 @@
 import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Head from "next/head";
+import Link from "next/link"; // 新增 Link 用於麵包屑
 import Layout from "../Layout";
 import { cartStore } from "@/lib/cartStore";
 
@@ -19,10 +20,18 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useT } from "@/lib/i18n";
 
 /* =========================================================
-   HELPER FUNCTIONS: 時間與排程計算
+   HELPER FUNCTIONS
    ========================================================= */
 
-/** 檢查當前時間是否落在某個時段內 */
+// 去除 HTML 標籤，用於生成 Meta Description
+function stripHtml(html) {
+  if (!html) return "";
+  return html
+    .replace(/<[^>]*>?/gm, "")
+    .substring(0, 160)
+    .trim();
+}
+
 function getActivePeriod(periods = []) {
   if (!Array.isArray(periods) || periods.length === 0) return null;
   const now = Date.now();
@@ -33,7 +42,6 @@ function getActivePeriod(periods = []) {
   });
 }
 
-/** 找出下一個即將開始的時段 (用於顯示預告) */
 function getNextPeriod(periods = []) {
   if (!Array.isArray(periods) || periods.length === 0) return null;
   const now = Date.now();
@@ -43,13 +51,10 @@ function getNextPeriod(periods = []) {
   return upcoming[0] || null;
 }
 
-/** 格式化日期顯示 (強制鎖定為溫哥華時間，格式 YYYY/MM/DD HH:mm) */
 const formatTimeDisplay = (isoString) => {
   if (!isoString) return "TBA";
   try {
     const date = new Date(isoString);
-
-    // 強制指定 timeZone: 'America/Vancouver'，避免瀏覽器轉成當地時區
     const formatter = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Vancouver",
       year: "numeric",
@@ -57,12 +62,10 @@ const formatTimeDisplay = (isoString) => {
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
-      hour12: false, // 24小時制
+      hour12: false,
     });
-
     const parts = formatter.formatToParts(date);
     const getPart = (type) => parts.find((p) => p.type === type)?.value;
-
     return `${getPart("year")}/${getPart("month")}/${getPart("day")} ${getPart(
       "hour"
     )}:${getPart("minute")}`;
@@ -71,7 +74,6 @@ const formatTimeDisplay = (isoString) => {
   }
 };
 
-/* ---------- helpers ---------- */
 const priceFromStore = (p) =>
   p?.prices?.price ? Number(p.prices.price) / 100 : 0;
 
@@ -106,10 +108,14 @@ const storageTagsFromProduct = (p) => {
 const pickZhName = (p) =>
   p?.extensions?.custom_acf?.zh_product_name || p?.cn_name || "";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://yourwebsite.com"; // 確保有預設值
 
-/* ========= 置中 & bg-black/50 的雙語 Popup (動態版) ========= */
+/* =========================================================
+   COMPONENTS: Modal & Breadcrumbs
+   ========================================================= */
+
 function GroupNoticeModal({ open, onClose, nextPeriod }) {
+  // ... (保持原本的 Modal 代碼不變)
   const info = nextPeriod || {
     start: null,
     end: null,
@@ -126,7 +132,6 @@ function GroupNoticeModal({ open, onClose, nextPeriod }) {
     <AnimatePresence>
       {open ? (
         <div className="fixed inset-0 z-[1000]">
-          {/* 背景遮罩 */}
           <motion.div
             key="backdrop"
             className="absolute inset-0 bg-black/50"
@@ -137,7 +142,6 @@ function GroupNoticeModal({ open, onClose, nextPeriod }) {
             onClick={onClose}
             aria-hidden="true"
           />
-          {/* 置中容器 */}
           <div className="absolute inset-0 flex items-center justify-center p-4">
             <motion.div
               key="modal"
@@ -150,7 +154,6 @@ function GroupNoticeModal({ open, onClose, nextPeriod }) {
               aria-labelledby="group-notice-title"
               className="relative w-[min(560px,95vw)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
             >
-              {/* Header */}
               <div className="flex items-center gap-3 border-b px-6 py-4">
                 <div className="grid h-9 w-9 place-items-center rounded-full bg-amber-100 text-amber-700">
                   <svg
@@ -183,23 +186,17 @@ function GroupNoticeModal({ open, onClose, nextPeriod }) {
                 </div>
               </div>
 
-              {/* Body */}
               <div className="px-6 py-5 space-y-4">
-                {/* 中文提示 */}
                 <p className="text-[15px] leading-relaxed text-gray-800">
-                  很抱歉，本商品僅在
-                  <b className="mx-1">「開團期間」</b>
+                  很抱歉，本商品僅在<b className="mx-1">「開團期間」</b>
                   開放下單；目前非開團時段。
                 </p>
-
-                {/* 英文提示 */}
                 <p className="text-sm leading-relaxed text-gray-600 mt-1">
-                  Sorry! Orders are only accepted during the
+                  Sorry! Orders are only accepted during the{" "}
                   <b className="mx-1">group-buy window</b>. It’s currently
                   closed.
                 </p>
 
-                {/* 開團時間 */}
                 <div className="rounded-xl border bg-amber-50/60 px-4 py-3 mt-4">
                   <div className="text-sm font-medium text-gray-900 mb-1">
                     📅 下一次開團時間 (Next Group Buy)
@@ -207,13 +204,11 @@ function GroupNoticeModal({ open, onClose, nextPeriod }) {
                   <div className="text-sm font-mono text-gray-900">
                     {timeRange}
                   </div>
-
                   <div className="mt-1 text-xs text-gray-600">
                     (Vancouver Time)
                   </div>
                 </div>
 
-                {/* 配送時間說明 */}
                 <div className="rounded-xl border bg-white px-4 py-3 mt-4">
                   <div className="text-sm font-medium text-gray-900 mb-1">
                     📦 預計配送說明 / Delivery Info
@@ -227,7 +222,6 @@ function GroupNoticeModal({ open, onClose, nextPeriod }) {
                 </div>
               </div>
 
-              {/* Footer */}
               <div className="flex items-center justify-center gap-3 border-t px-6 py-4">
                 <button
                   onClick={onClose}
@@ -244,6 +238,52 @@ function GroupNoticeModal({ open, onClose, nextPeriod }) {
   );
 }
 
+// 麵包屑組件
+function Breadcrumbs({ items, prefix }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <nav
+      className="text-xs sm:text-sm text-gray-500 mb-4"
+      aria-label="Breadcrumb"
+    >
+      <ol className="list-none p-0 inline-flex flex-wrap gap-2">
+        <li className="flex items-center">
+          <Link
+            href={`${prefix}/`}
+            className="hover:text-black hover:underline transition"
+          >
+            Home
+          </Link>
+          <span className="mx-2 text-gray-400">/</span>
+        </li>
+        {items.map((item, idx) => (
+          <li key={idx} className="flex items-center">
+            {item.href ? (
+              <Link
+                href={item.href}
+                className="hover:text-black hover:underline transition"
+              >
+                {item.label}
+              </Link>
+            ) : (
+              <span className="text-gray-900 font-medium truncate max-w-[150px] sm:max-w-none">
+                {item.label}
+              </span>
+            )}
+            {idx < items.length - 1 && (
+              <span className="mx-2 text-gray-400">/</span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
+/* =========================================================
+   MAIN COMPONENT
+   ========================================================= */
+
 export default function ProductDetail({
   initialProduct = null,
   buildLocale = null,
@@ -253,7 +293,6 @@ export default function ProductDetail({
   const t = useT();
   const { id } = router.query;
 
-  // 是否中文站
   const isCN = useMemo(() => {
     const loc = router?.locale || buildLocale || "";
     if (loc && /^(zh|cn)/i.test(loc)) return true;
@@ -266,16 +305,12 @@ export default function ProductDetail({
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(!initialProduct);
   const [thumbsSwiper, setThumbsSwiper] = useState(null);
-
-  // 加入購物車 Toast 狀態
   const [added, setAdded] = useState(null);
 
-  // Group-buy 限制 & Modal
   const [activePeriod, setActivePeriod] = useState(null);
   const [nextPeriod, setNextPeriod] = useState(null);
   const [showGroupModal, setShowGroupModal] = useState(false);
 
-  // 定時刷新 groupActive
   useEffect(() => {
     const checkTime = () => {
       setActivePeriod(getActivePeriod(periods));
@@ -286,7 +321,6 @@ export default function ProductDetail({
     return () => clearInterval(id);
   }, [periods]);
 
-  // ====== 安全傳遞 thumbs ======
   const thumbsParam = useMemo(() => {
     return thumbsSwiper && !thumbsSwiper.destroyed
       ? { swiper: thumbsSwiper }
@@ -308,18 +342,7 @@ export default function ProductDetail({
       qty: Math.max(1, count),
     };
 
-    cartStore.add(
-      {
-        id: payload.id,
-        name: payload.name,
-        name_en: payload.name_en,
-        name_zh: payload.name_zh,
-        img: payload.img,
-        price: payload.price,
-      },
-      payload.qty
-    );
-
+    cartStore.add(payload, payload.qty);
     setAdded(payload);
   }, []);
 
@@ -337,7 +360,6 @@ export default function ProductDetail({
       try {
         setLoading(true);
         setErr("");
-
         const pid = router.query.id;
         const headers = { "Accept-Language": router.locale || "en" };
 
@@ -352,15 +374,12 @@ export default function ProductDetail({
           if (!res2.ok) throw new Error(`HTTP ${res.status}`);
           data = await res2.json();
         }
-
         const prod = Array.isArray(data)
           ? data[0]
           : data?.data && !data?.id
           ? data.data
           : data;
-
         if (!prod?.id) throw new Error("Invalid product payload");
-
         if (!aborted) setP(prod);
       } catch (e) {
         if (!aborted) setErr(String(e?.message || e));
@@ -368,7 +387,6 @@ export default function ProductDetail({
         if (!aborted) setLoading(false);
       }
     })();
-
     return () => {
       aborted = true;
     };
@@ -391,16 +409,32 @@ export default function ProductDetail({
     );
   }
 
+  // --- 資料準備 ---
   const imgs = imagesFromProduct(p);
   const price = priceFromStore(p);
   const storageTags = storageTagsFromProduct(p);
-
   const zh = pickZhName(p) || "";
   const en = p?.name || "";
   const displayName = isCN && zh ? zh : en;
   const prefix = isCN ? "/cn" : "";
+  const base = SITE_URL.replace(/\/+$/, "");
+  const canonical = SITE_URL ? `${base}${prefix}/product/${p.id}` : undefined;
 
-  // ✅ 主商品加入購物車：非開團期間 → 彈窗
+  // SEO Meta Description (取純文字)
+  const metaDesc = p.short_description
+    ? stripHtml(p.short_description)
+    : stripHtml(p.description);
+
+  // Breadcrumbs Data
+  const breadcrumbItems = [
+    // 這裡可以根據 p.categories 動態加入分類，這裡僅示例
+    ...(p.categories && p.categories.length > 0
+      ? [{ label: p.categories[0].name, href: null }]
+      : []),
+    { label: displayName, href: null },
+  ];
+
+  // 加入購物車
   const add = () => {
     if (!activePeriod) {
       setShowGroupModal(true);
@@ -419,32 +453,62 @@ export default function ProductDetail({
     );
   };
 
-  const base = SITE_URL.replace(/\/+$/, "");
-  const canonical = SITE_URL ? `${base}${prefix}/product/${p.id}` : undefined;
-
-  const productJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: displayName,
-    sku: p?.sku || undefined,
-    image: imgs.map((i) => i.src).filter(Boolean),
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "CAD",
-      price: String(price || 0),
-      availability: p?.is_in_stock
-        ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
-      url: canonical,
+  // --- SEO 結構化資料 (JSON-LD) ---
+  const jsonLdData = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: displayName,
+      description: metaDesc,
+      sku: p?.sku || String(p.id),
+      image: imgs.map((i) => i.src).filter(Boolean),
+      brand: {
+        "@type": "Brand",
+        name: "Zao Jiao", // 你的品牌名稱
+      },
+      offers: {
+        "@type": "Offer",
+        priceCurrency: "CAD",
+        price: String(price || 0),
+        url: canonical,
+        availability: p?.is_in_stock
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+        seller: {
+          "@type": "Organization",
+          name: "Zao Jiao",
+        },
+      },
     },
-  };
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "Home",
+          item: `${base}${prefix}/`,
+        },
+        // 如果有分類，可以在這裡插入
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: displayName,
+          item: canonical,
+        },
+      ],
+    },
+  ];
 
   return (
     <Layout>
       <Head>
-        <title>{displayName}</title>
+        <title>{displayName} | Zao Jiao</title>
+        <meta name="description" content={metaDesc} />
         {canonical ? <link rel="canonical" href={canonical} /> : null}
-        {SITE_URL ? (
+
+        {SITE_URL && (
           <>
             <link
               rel="alternate"
@@ -462,13 +526,34 @@ export default function ProductDetail({
               href={`${base}/cn/product/${p.id}`}
             />
           </>
-        ) : null}
+        )}
+
+        {/* Open Graph */}
+        <meta property="og:type" content="product" />
+        <meta property="og:title" content={displayName} />
+        <meta property="og:description" content={metaDesc} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content={imgs?.[0]?.src} />
+        <meta property="product:price:amount" content={price} />
+        <meta property="product:price:currency" content="CAD" />
+        <meta property="og:site_name" content="Zao Jiao" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={displayName} />
+        <meta name="twitter:description" content={metaDesc} />
+        <meta name="twitter:image" content={imgs?.[0]?.src} />
+
         <link rel="preconnect" href="https://i0.wp.com" />
         <link rel="dns-prefetch" href="https://i0.wp.com" />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
-        />
+
+        {jsonLdData.map((data, i) => (
+          <script
+            key={i}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+          />
+        ))}
       </Head>
 
       <style jsx global>{`
@@ -479,9 +564,14 @@ export default function ProductDetail({
         }
       `}</style>
 
-      <main className="max-w-6xl mx-auto  pb-24 pt-[140px] px-8 sm:px-10">
-        <div className="grid grid-cols-1  lg:grid-cols-2 gap-10">
-          {/* 左：主圖 + 縮圖 */}
+      <main className="max-w-6xl mx-auto pb-24 pt-[100px] sm:pt-[140px] px-6 sm:px-10">
+        {/* 1. 麵包屑導航 */}
+        <div className="mb-4">
+          <Breadcrumbs items={breadcrumbItems} prefix={prefix} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          {/* 左：圖片 */}
           <div
             className="w-full flex flex-col items-center gap-4"
             key={`${router.locale}-${p.id}`}
@@ -497,10 +587,10 @@ export default function ProductDetail({
               >
                 {imgs.map((image, i) => (
                   <SwiperSlide key={`main-${i}`} className="!h-full">
-                    <div className="relative w-full h-full min-h-[320px] rounded overflow-hidden bg-white">
+                    <div className="relative w-full h-full min-h-[320px] rounded overflow-hidden bg-white border border-gray-100">
                       <Image
                         src={image.src}
-                        alt={image.alt || `Product Image ${i + 1}`}
+                        alt={image.alt || displayName}
                         fill
                         className="object-contain"
                         sizes="(max-width:768px) 100vw, 520px"
@@ -511,7 +601,6 @@ export default function ProductDetail({
                 ))}
               </Swiper>
             </div>
-
             <div className="w-full max-w-[520px]">
               <Swiper
                 onSwiper={setThumbsSwiper}
@@ -527,10 +616,10 @@ export default function ProductDetail({
               >
                 {imgs.map((image, i) => (
                   <SwiperSlide key={`thumb-${i}`}>
-                    <div className="relative w-full aspect-square rounded overflow-hidden cursor-pointer hover:opacity-80 bg-white">
+                    <div className="relative w-full aspect-square rounded overflow-hidden cursor-pointer hover:opacity-80 bg-white border border-gray-100">
                       <Image
                         src={image.src}
-                        alt={image.alt || `Thumbnail ${i + 1}`}
+                        alt={image.alt || `Thumb ${i + 1}`}
                         fill
                         className="object-contain"
                         sizes="80px"
@@ -542,24 +631,42 @@ export default function ProductDetail({
             </div>
           </div>
 
-          {/* 右：內容 */}
-          <div className="flex pl-0 sm:pl-10 items-start pt-0 sm:pt-20">
+          {/* 右：資訊 */}
+          <div className="flex pl-0 sm:pl-10 items-start pt-0 sm:pt-10">
             <div className="right-info w-full">
-              <h1 className="text-2xl font-bold mb-2">{displayName}</h1>
-              <div className="text-xl mb-2">CA$ {price}</div>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-3 leading-snug">
+                {displayName}
+              </h1>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="text-2xl font-medium text-gray-900">
+                  CA$ {price.toFixed(2)}
+                </div>
+                {/* 團購狀態標籤 */}
+                {!activePeriod && (
+                  <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-md font-medium">
+                    {isCN ? "非開團期間" : "Group Buy Closed"}
+                  </span>
+                )}
+                {!p.is_in_stock && (
+                  <span className="bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-md font-medium">
+                    Sold Out
+                  </span>
+                )}
+              </div>
 
               {storageTags.length > 0 && (
-                <div className="mb-4 flex flex-wrap gap-2">
+                <div className="mb-6 flex flex-wrap gap-2">
                   {storageTags.map((t, i) => {
                     const isCold = /冷藏/.test(t);
                     const isFrozen = /冷凍/.test(t);
                     const base =
-                      "inline-block px-3 py-1 rounded text-sm align-middle";
+                      "inline-block px-3 py-1.5 rounded text-sm align-middle font-medium tracking-wide";
                     const cls = isFrozen
-                      ? "bg-red-100 text-red-800"
+                      ? "bg-red-50 text-red-700 border border-red-100"
                       : isCold
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-gray-100 text-gray-800";
+                      ? "bg-blue-50 text-blue-700 border border-blue-100"
+                      : "bg-gray-100 text-gray-700 border border-gray-200";
                     return (
                       <span key={i} className={`${base} ${cls}`}>
                         {t}
@@ -571,53 +678,77 @@ export default function ProductDetail({
 
               {p.short_description && (
                 <div
-                  className="prose prose-sm text-gray-700 mb-6"
+                  className="prose prose-sm text-gray-600 mb-8 leading-relaxed"
                   dangerouslySetInnerHTML={{ __html: p.short_description }}
                 />
               )}
 
-              <div className="flex items-center gap-4 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
+                <div className="flex items-center border border-gray-300 rounded-lg w-max">
+                  <button
+                    onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    className="px-4 py-2 hover:bg-gray-50 text-gray-600"
+                    aria-label="Decrease quantity"
+                  >
+                    -
+                  </button>
+                  <span className="w-10 text-center font-medium">{qty}</span>
+                  <button
+                    onClick={() => setQty((q) => q + 1)}
+                    className="px-4 py-2 hover:bg-gray-50 text-gray-600"
+                    aria-label="Increase quantity"
+                  >
+                    +
+                  </button>
+                </div>
+
                 <button
-                  onClick={() => setQty((q) => Math.max(1, q - 1))}
-                  className="border rounded px-3 py-1"
+                  onClick={add}
+                  disabled={!p.is_in_stock && false} // 若要強制庫存判斷可打開
+                  className={`flex-1 px-8 py-3 rounded-lg text-white font-medium transition shadow-sm
+                    ${
+                      activePeriod
+                        ? "bg-black hover:bg-gray-800"
+                        : "bg-gray-400 cursor-not-allowed"
+                    }
+                  `}
                 >
-                  -
-                </button>
-                <span>{qty}</span>
-                <button
-                  onClick={() => setQty((q) => q + 1)}
-                  className="border rounded px-3 py-1"
-                >
-                  +
+                  {activePeriod
+                    ? t("pd.addToCart", "Add to Cart")
+                    : isCN
+                    ? "目前無法下單"
+                    : "Group Buy Closed"}
                 </button>
               </div>
 
-              <button
-                onClick={add}
-                className="px-6 py-3 bg-black text-white rounded hover:opacity-90 transition"
-              >
-                {t("pd.addToCart", "Add to Cart")}
-              </button>
+              {/* 運送說明小字 (Optional) */}
+              <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded border border-gray-100">
+                <p>
+                  🚚{" "}
+                  {isCN
+                    ? "配送範圍：大溫哥華地區"
+                    : "Delivery: Greater Vancouver Area"}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 詳細介紹 */}
+        {/* 詳細描述區塊 */}
         {p.description && (
-          <div className="mt-12">
-            <h2 className="text-xl font-bold mb-2">
+          <div className="mt-16 border-t pt-10">
+            <h2 className="text-xl font-bold mb-6">
               {t("pd.desc", "Description")}
             </h2>
             <div
-              className="prose prose-sm text-gray-800"
+              className="prose prose-neutral max-w-none text-gray-700"
               dangerouslySetInnerHTML={{ __html: p.description }}
             />
           </div>
         )}
 
-        {/* 推薦產品（也受開團限制） */}
-        <section className="mt-16">
-          <h3 className="text-xl font-bold mb-4">
+        <section className="mt-20">
+          <h3 className="text-xl font-bold mb-6">
             {t("pd.other", "You may also like")}
           </h3>
           <RelatedCarousel
@@ -627,7 +758,7 @@ export default function ProductDetail({
               imagesFromProduct(p)?.[0]?.src || "/images/placeholder.png"
             }
             currentPrice={price}
-            activePeriod={activePeriod} // 傳入是否開團
+            activePeriod={activePeriod}
             onQuickAdd={(prod) => {
               if (!activePeriod) {
                 setShowGroupModal(true);
@@ -639,7 +770,6 @@ export default function ProductDetail({
         </section>
       </main>
 
-      {/* 加入購物車彈出匡 */}
       <AddToCartToast
         open={!!added}
         onClose={() => setAdded(null)}
@@ -647,8 +777,6 @@ export default function ProductDetail({
         onGoCart={() => router.push("/checkout")}
         t={t}
       />
-
-      {/* 團購限制提示 Modal */}
       <GroupNoticeModal
         open={showGroupModal}
         onClose={() => setShowGroupModal(false)}
@@ -658,12 +786,14 @@ export default function ProductDetail({
   );
 }
 
+// ... (保持 RelatedCarousel, AddToCartToast 組件不變)
 /* 推薦區 */
 function RelatedCarousel({
   currentId,
   categories,
   currentFirstImage,
   currentPrice,
+  activePeriod,
   onQuickAdd,
 }) {
   const t = useT();
@@ -763,6 +893,7 @@ function AddToCartToast({ open, onClose, item, onGoCart, t }) {
 }
 
 /* ---------------- SSG + ISR ---------------- */
+// ... (保持原本的 getStaticPaths 和 getStaticProps, 這部分邏輯已足夠完善)
 export async function getStaticPaths() {
   const base = process.env.WC_URL;
   let paths = [];
@@ -795,7 +926,6 @@ export async function getStaticProps({ params, locale }) {
   let periods = [];
 
   try {
-    // ① Store API 取單品
     const r = await fetch(
       `${ensureURL(base)}/wp-json/wc/store/products/${id}`,
       {
@@ -806,14 +936,12 @@ export async function getStaticProps({ params, locale }) {
     if (!r.ok || !data?.id) throw new Error("Product not found");
     product = data;
 
-    // ② 解析保存方式
     product = await resolveStorageAttributeForSingle(base, product, ck, cs);
 
-    // ③ 追加 v3 meta_data → 併入 zh 名
     if (ck && cs) {
       const v3 = `${ensureURL(
         base
-      )}/wp-json/wc/v3/products/${id}?_fields=id,meta_data`;
+      )}/wp-json/wc/v3/products/${id}?_fields=id,meta_data,sku`; // 增加獲取 SKU
       const vr = await fetch(v3, {
         headers: {
           Accept: "application/json",
@@ -827,10 +955,11 @@ export async function getStaticProps({ params, locale }) {
         if (!product.extensions.custom_acf) product.extensions.custom_acf = {};
         product.extensions.custom_acf.cn_name = cn;
         product.extensions.custom_acf.zh_product_name = cn;
+        // 確保 SKU 有被傳入
+        if (detail.sku) product.sku = detail.sku;
       }
     }
 
-    // ④ 抓取排程設定
     try {
       const apiUrl = `${ensureURL(base)}/wp-json/custom/v1/group-buy`;
       const timeRes = await fetch(apiUrl);
@@ -848,7 +977,7 @@ export async function getStaticProps({ params, locale }) {
     props: {
       initialProduct: product,
       buildLocale: locale ?? null,
-      periods, // ✅ 傳入排程資料
+      periods,
     },
     revalidate: 300,
   };

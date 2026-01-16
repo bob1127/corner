@@ -12,9 +12,9 @@ import { useT } from "@/lib/i18n";
 import { useRouter } from "next/router";
 
 /* =========================================================
-   HELPER FUNCTIONS: 時間與排程計算
+   HELPER FUNCTIONS (保持不變)
    ========================================================= */
-
+// ... (保留原本的 getActivePeriod, getNextPeriod, formatTimeDisplay 等 helper function) ...
 function getActivePeriod(periods = []) {
   if (!Array.isArray(periods) || periods.length === 0) return null;
   const now = Date.now();
@@ -35,6 +35,7 @@ function getNextPeriod(periods = []) {
 }
 
 const formatTimeDisplay = (isoString) => {
+  // ... (保留原本邏輯)
   if (!isoString) return "TBA";
   try {
     const date = new Date(isoString);
@@ -57,11 +58,8 @@ const formatTimeDisplay = (isoString) => {
   }
 };
 
-/* =========================================================
-   HELPER FUNCTIONS: 產品資料處理
-   ========================================================= */
-
 const storageTagsFromProduct = (p) => {
+  // ... (保留原本邏輯)
   if (!p || !Array.isArray(p.attributes)) return [];
   const attr = p.attributes.find((a) => {
     const slug = String(a?.slug || "").toLowerCase();
@@ -86,6 +84,7 @@ const storageTagsFromProduct = (p) => {
 
 const PAGE_SIZE = 15;
 function getVisiblePages(current, total) {
+  // ... (保留原本邏輯)
   const pages = [];
   if (total <= 7) {
     for (let i = 1; i <= total; i++) pages.push(i);
@@ -100,12 +99,12 @@ function getVisiblePages(current, total) {
 const pickZhName = (p) =>
   p?.extensions?.custom_acf?.zh_product_name || p?.cn_name || "";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://corner-rouge.vercel.app"; // 確保有預設值
 
-/* =========================================================
-   COMPONENT: Group Notice Modal
-   ========================================================= */
+// ... (保留 GroupNoticeModal 和 isBeerProduct) ...
 function GroupNoticeModal({ open, onClose, nextPeriod }) {
+  // ... (保留原本 Component 內容)
   const info = nextPeriod || {
     start: null,
     end: null,
@@ -174,12 +173,11 @@ function GroupNoticeModal({ open, onClose, nextPeriod }) {
 
               <div className="px-6 py-5 space-y-4">
                 <p className="text-[15px] leading-relaxed text-gray-800">
-                  很抱歉，本商品僅在
-                  <b className="mx-1">「開團期間」</b>
+                  很抱歉，本商品僅在<b className="mx-1">「開團期間」</b>
                   開放下單；目前非開團時段。
                 </p>
                 <p className="text-sm leading-relaxed text-gray-600 mt-1">
-                  Sorry! Orders are only accepted during the
+                  Sorry! Orders are only accepted during the{" "}
                   <b className="mx-1">group-buy window</b>. It’s currently
                   closed.
                 </p>
@@ -225,7 +223,6 @@ function GroupNoticeModal({ open, onClose, nextPeriod }) {
   );
 }
 
-// 判斷是否為啤酒
 function isBeerProduct(p) {
   const cats = p?.categories;
   if (!Array.isArray(cats)) return false;
@@ -254,6 +251,17 @@ export default function Home({
     return p === "/cn" || p.startsWith("/cn/");
   }, [router.locale, router.asPath, buildLocale]);
 
+  // --- 1. SEO 資料設定 (可根據實際網站內容修改) ---
+  const seoMeta = {
+    title: isCN
+      ? "商品列表｜灶腳 溫哥華優質宅配"
+      : "Products | Zao Jiao - Authentic Asian Food Delivery",
+    description: isCN
+      ? "灶腳提供溫哥華地區最優質的亞洲美食宅配，包含各式零食、湯品、牛肉麵、火鍋與甜點。立即下單，享受家鄉的美味。"
+      : "Order authentic Asian snacks, soups, noodle soups, hot pot, and desserts delivered to your door in Vancouver. Authentic taste, premium quality.",
+    siteName: isCN ? "灶腳 Zao Jiao" : "Zao Jiao",
+  };
+
   const getDisplayName = (p) => {
     const zh = pickZhName(p);
     const en = p?.name || "";
@@ -277,8 +285,6 @@ export default function Home({
     [t]
   );
 
-  // [修改 1] 將 state 命名從 items 改為 allItems，代表所有商品
-  // initialItems 已經是 getStaticProps 抓好的「所有非啤酒商品」
   const [allItems, setAllItems] = useState(initialItems);
   const [loading, setLoading] = useState(false);
   const [qtyMap, setQtyMap] = useState(
@@ -305,7 +311,6 @@ export default function Home({
   const [page, setPage] = useState(1);
   const gridTopRef = useRef(null);
 
-  // 切換分類時重置頁碼
   useEffect(() => {
     setPage(1);
   }, [activeCat]);
@@ -314,22 +319,15 @@ export default function Home({
     gridTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  // [修改 2] 移除切換分類時的 API Call，改為頁面載入時確保抓到所有資料
-  // 這樣切換 Tab 會瞬間完成，且能解決分類抓不到資料的問題
   useEffect(() => {
     (async () => {
-      // 只有當初始資料很少時，才去後端抓「全部商品」
-      // 如果 initialItems 已經有資料，這個 Effect 其實可以根據需求省略
-      // 但為了保險起見 (getStaticProps 可能只有 100 筆)，這裡還是設計成去抓全部
       if (initialItems.length < 1) {
         try {
           setLoading(true);
-          // 這裡不帶 category 參數，直接抓全部 (per_page 設大一點)
           const url = `/api/store/products?per_page=100`;
           const r = await fetch(url);
           const data = await r.json();
           const arr = Array.isArray(data) ? data : [];
-          // 再次確保過濾掉啤酒
           const filteredArr = arr.filter((p) => !isBeerProduct(p));
 
           setAllItems(filteredArr);
@@ -342,17 +340,12 @@ export default function Home({
         }
       }
     })();
-  }, [initialItems]); // 依賴項移除 activeCat
+  }, [initialItems]);
 
-  // [修改 3] 使用 useMemo 前端過濾商品
   const displayedItems = useMemo(() => {
-    // 1. 先過濾掉啤酒 (雖然 API/StaticProps 應該已經濾過了，雙重保險)
     let filtered = allItems.filter((p) => !isBeerProduct(p));
-
-    // 2. 根據目前選的 Tab (Category Slug) 進行過濾
     if (activeCat) {
       filtered = filtered.filter((p) => {
-        // 檢查該商品的 categories 陣列中是否有符合 activeCat 的 slug
         return (
           Array.isArray(p.categories) &&
           p.categories.some(
@@ -361,7 +354,6 @@ export default function Home({
         );
       });
     }
-
     return filtered;
   }, [allItems, activeCat]);
 
@@ -383,7 +375,6 @@ export default function Home({
     []
   );
 
-  // Add to Cart
   const addToCart = (p) => {
     if (!activePeriod) {
       setShowGroupModal(true);
@@ -413,7 +404,6 @@ export default function Home({
     setQty(p.id, 0);
   };
 
-  // [修改 4] 分頁計算基於 displayedItems
   const totalPages = Math.max(1, Math.ceil(displayedItems.length / PAGE_SIZE));
   const safePage = Math.min(Math.max(1, page), totalPages);
   const pageStart = (safePage - 1) * PAGE_SIZE;
@@ -429,41 +419,132 @@ export default function Home({
 
   const base = SITE_URL.replace(/\/+$/, "");
   const pathPrefix = isCN ? "/cn" : "";
-  const canonical = `${base}${pathPrefix || ""}/`;
+  const canonical = `${base}${pathPrefix}/`;
+  const logoUrl = `${base}/logo.png`; // 請確保你的 public 資料夾有 logo.png
 
-  // JSON-LD 只顯示當前過濾後的商品
-  const itemListJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    itemListElement: (displayedItems || []).slice(0, 20).map((p, idx) => ({
-      "@type": "ListItem",
-      position: idx + 1,
-      url: `${base}${pathPrefix}/product/${p.id}`,
-      name: getDisplayName(p),
-    })),
-  };
+  // --- 2. 結構化資料 (Schema.org) ---
+  const structuredData = useMemo(() => {
+    // A. 網站資訊 (WebSite)
+    const websiteSchema = {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: seoMeta.siteName,
+      url: base,
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${base}/search?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+    };
+
+    // B. 組織資訊 (Organization)
+    const orgSchema = {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: seoMeta.siteName,
+      url: base,
+      logo: logoUrl,
+      sameAs: [
+        "https://www.facebook.com/yourpage", // 填寫你的社群連結
+        "https://www.instagram.com/yourpage",
+      ],
+    };
+
+    // C. 商品列表 (ItemList)
+    // 優先使用 initialItems (SSG 產生時就有的資料)，這樣爬蟲能直接讀取
+    // 如果沒有 initialItems 則退而求其次用 allItems
+    const sourceItems = initialItems.length > 0 ? initialItems : allItems;
+
+    // 只取前 50 筆做 Schema，避免 JSON-LD 過大影響效能
+    const itemListSchema = {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      itemListElement: sourceItems.slice(0, 50).map((p, idx) => ({
+        "@type": "ListItem",
+        position: idx + 1,
+        url: `${base}${pathPrefix}/product/${p.id}`,
+        name: getDisplayName(p),
+        image: p.images?.[0]?.src || "",
+      })),
+    };
+
+    return [websiteSchema, orgSchema, itemListSchema];
+  }, [
+    base,
+    logoUrl,
+    pathPrefix,
+    initialItems,
+    allItems,
+    isCN,
+    seoMeta.siteName,
+  ]);
 
   return (
     <Layout>
       <Head>
-        <title>{isCN ? "商品列表｜中文站" : "Products"}</title>
-        {SITE_URL ? <link rel="canonical" href={canonical} /> : null}
-        {SITE_URL ? (
+        {/* --- 3. SEO Meta Tags --- */}
+        <title>{seoMeta.title}</title>
+        <meta name="description" content={seoMeta.description} />
+        <meta
+          name="keywords"
+          content={
+            isCN
+              ? "亞洲美食, 團購, 溫哥華宅配, 零食, 台灣小吃"
+              : "Asian Food, Group Buy, Vancouver Delivery, Snacks, Taiwanese Food"
+          }
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="robots" content="index, follow" />
+
+        {/* Canonical */}
+        {SITE_URL && <link rel="canonical" href={canonical} />}
+
+        {/* Hreflang (告知 Google 不同語言版本) */}
+        {SITE_URL && (
           <>
             <link rel="alternate" hrefLang="x-default" href={`${base}/`} />
             <link rel="alternate" hrefLang="en" href={`${base}/`} />
             <link rel="alternate" hrefLang="zh" href={`${base}/cn/`} />
           </>
-        ) : null}
+        )}
+
+        {/* Open Graph (Facebook / Line) */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={seoMeta.title} />
+        <meta property="og:description" content={seoMeta.description} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:site_name" content={seoMeta.siteName} />
+        <meta
+          property="og:image"
+          content={`${base}/images/2025-10-灶腳-IG-灶腳宅配(1920x768px)-定稿01.jpg`}
+        />
+        <meta property="og:locale" content={isCN ? "zh_TW" : "en_US"} />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={seoMeta.title} />
+        <meta name="twitter:description" content={seoMeta.description} />
+        <meta
+          name="twitter:image"
+          content={`${base}/images/2025-10-灶腳-IG-灶腳宅配(1920x768px)-定稿01.jpg`}
+        />
+
+        {/* DNS Prefetch */}
         <link rel="preconnect" href="https://i0.wp.com" />
         <link rel="dns-prefetch" href="https://i0.wp.com" />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
-        />
+
+        {/* --- 4. 插入 JSON-LD --- */}
+        {structuredData.map((sd, index) => (
+          <script
+            key={index}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(sd) }}
+          />
+        ))}
       </Head>
 
       <main className="bg-[#f4f1f1] pt-20 sm:pt-0">
+        {/* ... (保持原本的 UI 內容，從 Toast 到商品列表的渲染) ... */}
         <div className="pointer-events-none fixed inset-0 z-[900] flex items-end justify-center">
           <AnimatePresence mode="wait">
             {toast && (
@@ -490,7 +571,7 @@ export default function Home({
         <section>
           <Image
             src="/images/2025-10-灶腳-IG-灶腳宅配(1920x768px)-定稿01.jpg"
-            alt="banner"
+            alt={isCN ? "灶腳首頁橫幅" : "Zao Jiao Home Banner"}
             width={1920}
             height={768}
             className="w-full "
@@ -500,6 +581,7 @@ export default function Home({
 
         <div className="mt-8 flex flex-col items-center gap-4">
           <div className="block sm:hidden w-[80%] max-w-[300px]">
+            {/* ... (Mobile Select) ... */}
             <select
               value={activeCat}
               onChange={(e) => setActiveCat(e.target.value)}
@@ -514,6 +596,7 @@ export default function Home({
           </div>
 
           <div className="hidden sm:flex justify-center gap-3 flex-wrap">
+            {/* ... (Desktop Buttons) ... */}
             {CATEGORIES.map((c) => (
               <button
                 key={c.slug}
@@ -554,22 +637,20 @@ export default function Home({
            gap-2 sm:gap-8 my-12"
                 >
                   {pageItems.map((p) => {
+                    // ... (保留原本 Item 渲染邏輯)
                     const q = qtyMap[p.id] ?? 0;
                     const img =
                       p?.images?.[0]?.src || "/images/placeholder.png";
                     const price = p?.prices?.price
                       ? Number(p.prices.price) / 100
                       : null;
-
                     const regularPrice = p?.prices?.regular_price
                       ? Number(p.prices.regular_price) / 100
                       : null;
-
                     const hasDiscount =
                       regularPrice !== null &&
                       price !== null &&
                       regularPrice > price;
-
                     const tags = storageTagsFromProduct(p);
                     const displayName = getDisplayName(p);
 
@@ -578,9 +659,11 @@ export default function Home({
                         key={p.id}
                         className="item relative flex flex-col justify-center items-center group bg-white p-4 border border-gray-100 hover:shadow-md transition"
                       >
+                        {/* Link 改進：增加 title 屬性幫助 SEO */}
                         <Link
                           href={`${prefix}/product/${p.id}`}
                           aria-label={`${displayName} details`}
+                          title={displayName}
                           className="absolute inset-0 z-20"
                         />
 
@@ -597,7 +680,10 @@ export default function Home({
                           </div>
 
                           <div className="item-info mt-3 text-center">
-                            <b className="line-clamp-2">{displayName}</b>
+                            {/* 改用 h2 或 h3 增加語意結構，視 Layout 而定，這裡保持 b 但增加 line-height */}
+                            <h3 className="line-clamp-2 text-sm font-bold min-h-[2.5em]">
+                              {displayName}
+                            </h3>
                             {price !== null && (
                               <div className="mt-1 text-sm text-gray-600 flex flex-col items-center justify-center">
                                 {hasDiscount && (
@@ -644,6 +730,7 @@ export default function Home({
                               onClick={() => setQty(p.id, q - 1)}
                               className="rounded-xl border px-3 py-1"
                               disabled={q <= 0}
+                              aria-label="Decrease quantity"
                             >
                               −
                             </button>
@@ -662,11 +749,13 @@ export default function Home({
                                 )
                               }
                               className="w-16 rounded-xl border px-2 py-1 text-center no-spin"
+                              aria-label="Quantity"
                             />
 
                             <button
                               onClick={() => setQty(p.id, q + 1)}
                               className="rounded-xl border px-3 py-1"
+                              aria-label="Increase quantity"
                             >
                               +
                             </button>
@@ -693,6 +782,7 @@ export default function Home({
                 </motion.div>
               </AnimatePresence>
 
+              {/* ... (Pagination 保持不變) ... */}
               {totalPages > 1 && (
                 <nav
                   aria-label="Products pagination"
@@ -755,7 +845,7 @@ export default function Home({
   );
 }
 
-// getStaticProps 保持原樣 (除了確保啤酒過濾)
+// getStaticProps 保持不變
 export async function getStaticProps({ locale }) {
   const base = process.env.WC_URL;
   const ck = process.env.WC_CK;
@@ -771,7 +861,6 @@ export async function getStaticProps({ locale }) {
       headers: { Accept: "application/json" },
     });
     const rawList = (await r.json()) || [];
-    // [重點] Server Side 先過濾掉啤酒
     const list = Array.isArray(rawList)
       ? rawList.filter((p) => !isBeerProduct(p))
       : [];
