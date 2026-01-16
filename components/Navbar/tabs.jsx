@@ -403,17 +403,6 @@ export const SlideTabsExample = () => {
 
             {/* 中：桌機選單 */}
             <div className="hidden md:flex w-[60%] lg:w-[80%] items-center justify-center gap-8">
-              <FlyoutLink
-                href="/"
-                label="品牌門店"
-                FlyoutContent={BrandStoresContent}
-              />
-              <FlyoutLink
-                href="/menu"
-                label="品牌菜單"
-                FlyoutContent={BrandMenuContent}
-              />
-
               {/* 中間 Logo */}
               <Link
                 href="https://memory-ozgp.vercel.app"
@@ -428,19 +417,6 @@ export const SlideTabsExample = () => {
                   priority
                   className="h-auto w-[190px]"
                 />
-              </Link>
-
-              <Link
-                href="/news"
-                className="text-base font-medium text-black/80 hover:text-[#eda240] transition-colors"
-              >
-                品牌動態
-              </Link>
-              <Link
-                href="/participation"
-                className="text-base font-medium text-black/80 hover:text-[#eda240] transition-colors"
-              >
-                加盟合作
               </Link>
             </div>
 
